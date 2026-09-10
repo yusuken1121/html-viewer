@@ -1,0 +1,10 @@
+# Organization policy: never install a version published less than 7 days ago.
+# Set as a setting rather than a per-command flag, so every install — by any
+# developer and by CI — is covered. 10080 minutes = 7 days.
+# Escape hatch for a single package: minimumReleaseAgeExclude.
+minimumReleaseAge: 10080
+
+# pnpm 10 blocks postinstall scripts by default. esbuild needs its to link the
+# platform binary that drizzle-kit runs on.
+onlyBuiltDependencies:
+  - esbuild

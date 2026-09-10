@@ -1,0 +1,15 @@
+# Default owner for everything.
+*                           @yusuken1121
+
+# The architecture rules and the layer boundaries: changing these changes what
+# every future feature is allowed to do, so they get a deliberate review.
+/eslint.config.mjs          @yusuken1121
+/.cursor/rules/             @yusuken1121
+/.cursor/skills/            @yusuken1121
+/src/core/                  @yusuken1121
+
+# Anything touching credentials, sessions, or the database shape.
+/src/features/auth/         @yusuken1121
+/src/infrastructure/db/     @yusuken1121
+/src/middleware.ts          @yusuken1121
+/drizzle/                   @yusuken1121

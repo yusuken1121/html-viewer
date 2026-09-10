@@ -1,0 +1,41 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits", ":dependencyDashboard"],
+  "timezone": "Asia/Tokyo",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "//minimumReleaseAge": "Mirrors pnpm-workspace.yaml's minimumReleaseAge: a version less than 7 days old is not installed, so opening a PR for one only produces a lockfile pnpm will refuse.",
+  "minimumReleaseAge": "7 days",
+  "packageRules": [
+    {
+      "description": "Patch and minor updates for dev tooling are safe to batch.",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "dev dependencies",
+      "automerge": true
+    },
+    {
+      "description": "Framework and auth majors change behaviour \u2014 review individually.",
+      "matchPackageNames": [
+        "next",
+        "react",
+        "react-dom",
+        "next-auth",
+        "drizzle-orm"
+      ],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "addLabels": ["needs-manual-review"]
+    },
+    {
+      "description": "next-auth v5 is a beta line; do not jump betas automatically.",
+      "matchPackageNames": ["next-auth"],
+      "automerge": false
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  }
+}

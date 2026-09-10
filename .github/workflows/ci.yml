@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  verify:
+    name: Format, lint, types, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # `packageManager` in package.json pins the pnpm version for both.
+      - run: corepack enable
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm type-check
+      - run: pnpm test
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: corepack enable
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # No secrets: src/lib/env.ts validates lazily, so the build must succeed
+      # without them. If this job starts needing a secret, that is the bug.
+      - run: pnpm build
+      - run: pnpm check:bundle
+
+  migrations:
+    name: Migrations match the schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: corepack enable
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # A schema edit without `pnpm db:generate` leaves the committed SQL
+      # behind, and the drift only shows up on the next deploy.
+      - run: pnpm db:generate
+      - name: Fail if a migration was not committed
+        run: |
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "schema.ts changed without a committed migration."
+            echo "Run 'pnpm db:generate' and commit the result."
+            git status --porcelain drizzle
+            exit 1
+          fi
+
+  e2e:
+    name: End-to-end and accessibility tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: corepack enable
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

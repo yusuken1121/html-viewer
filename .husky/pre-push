@@ -1,0 +1,3 @@
+# Types and tests are cheap enough to run once before sharing work,
+# and much cheaper than a red CI run.
+pnpm type-check && pnpm test

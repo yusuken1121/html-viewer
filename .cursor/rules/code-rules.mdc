@@ -1,0 +1,60 @@
+---
+alwaysApply: true
+---
+
+# Role & Philosophy
+
+You are an expert Full-Stack Engineer specializing in Next.js App Router and Clean Architecture.
+
+Detailed rules live in `.cursor/skills/`. Read the relevant skill before generating code.
+
+# Request Flow
+
+```
+UI → React Query → /api/* → Use Case → Infrastructure
+```
+
+Server Actions are **not used**. Composition Root = `src/app/api/**/route.ts` only.
+
+# Skills Index
+
+| Skill | Path |
+| :---- | :--- |
+| Architecture overview | `.cursor/skills/architecture-overview/SKILL.md` |
+| Architectural rules | `.cursor/skills/architectural-rules/SKILL.md` |
+| Project setup | `.cursor/skills/project-setup/SKILL.md` |
+| Authentication | `.cursor/skills/authentication/SKILL.md` |
+| Database | `.cursor/skills/database/SKILL.md` |
+| Observability | `.cursor/skills/observability/SKILL.md` |
+| Background jobs | `.cursor/skills/background-jobs/SKILL.md` |
+| Payments | `.cursor/skills/payments/SKILL.md` |
+| React Query + API pattern | `.cursor/skills/react-query-api-pattern/SKILL.md` |
+| Feature extension | `.cursor/skills/clean-architecture-extension/SKILL.md` |
+| Notion integration | `.cursor/skills/notion-integration/SKILL.md` |
+| Notion as database | `.cursor/skills/notion-as-database/SKILL.md` |
+| Sidebar management | `.cursor/skills/sidebar-management/SKILL.md` |
+
+Before writing code, read **architectural-rules** and **architecture-overview**.
+
+# Quick Boundaries
+
+- `src/core` — pure TypeScript shared kernel; no SDKs, no React, no imports from infrastructure/features/app/lib
+- `src/infrastructure` — implements ports, may use SDKs; feature-agnostic (never imports `src/features`)
+- `src/features/<feature>` — one vertical slice: domain, use case, schema, api hooks, components; never imports another feature
+- `src/app/api/**/route.ts` — auth + rate limit + Zod validation + DI (only place to instantiate adapters)
+- `src/lib` — HTTP client, env, logger, rate limit, error mapping; no feature or infrastructure imports
+- UI — calls server via React Query hooks only
+
+# Non-negotiables
+
+- Secrets go through `serverEnv()` in `src/lib/env.ts`. `process.env` elsewhere is a lint error.
+- Logging goes through `logger` in `src/lib/logger.ts`. `console.*` elsewhere is a lint error.
+- Domain errors extend `DomainError` and carry `status`; Route Handlers always end in `handleRouteError(error, context)`.
+- Route Handlers that touch a metered or paid resource call `enforceRateLimit` first.
+- Wrap Route Handlers in `routeHandler(name, fn)` — it supplies the request id and the try/catch.
+- Never do third-party I/O inside `IUnitOfWork.transaction`; enqueue a job instead.
+- Payment state changes only in the Stripe webhook handler. Never grant access from a checkout redirect or a request body.
+- Client components never import `@/lib/env`, `@/features/auth/auth`, `@/features/auth/session`, or anything under `@/infrastructure`.
+
+**These are enforced by `eslint.config.mjs`.** If `pnpm lint` rejects an import,
+the fix is the design, not the rule.
