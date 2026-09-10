@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev-local",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "DOCS_SOURCE=local",
+        "DOCS_LOCAL_DIR=content",
+        "pnpm",
+        "dev",
+        "--port",
+        "3000"
+      ],
+      "port": 3000
+    }
+  ]
+}

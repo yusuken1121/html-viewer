@@ -4,13 +4,11 @@
  * a form introduces a new field, otherwise messages fall back to "対象の項目".
  */
 export const FIELD_LABELS = {
-  name: "氏名",
-  email: "メールアドレス",
-  role: "権限",
-  status: "ステータス",
-  password: "パスワード",
-  passwordConfirmation: "パスワード（確認用）",
+  id: "ドキュメントID",
   title: "タイトル",
   content: "コンテンツ",
+  name: "氏名",
+  email: "メールアドレス",
+  password: "パスワード",
   message: "メッセージ",
 } as const

@@ -1,5 +1,8 @@
-import { ChatInterface } from "@/features/chat/components/chat-interface"
+import type { Metadata } from "next"
+import { DocumentLibrary } from "@/features/docs/components/document-library"
+
+export const metadata: Metadata = { title: "ライブラリ" }
 
 export default function HomePage() {
-  return <ChatInterface />
+  return <DocumentLibrary />
 }

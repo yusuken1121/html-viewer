@@ -35,3 +35,14 @@ export function createNotionRecordWriter<TRecord>(
 
   return new ConfigurableNotionGateway(config)
 }
+
+export {
+  NotionDocumentRepository,
+  createNotionDocumentRepository,
+  MAX_DOCUMENT_BYTES,
+} from "./notion-document.repository"
+export type { NotionDocumentDatabaseConfig } from "./notion-document.repository"
+export {
+  NotionDataSourceError,
+  resolveDataSourceId,
+} from "./notion-data-source"

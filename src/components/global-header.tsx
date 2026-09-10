@@ -26,7 +26,7 @@ function getPageTitle(pathname: string): string {
     (item) => item.path && isPathActive(pathname, item.path),
   )
 
-  return match?.label ?? "Page"
+  return match?.label ?? "ページ"
 }
 
 export function GlobalHeader() {
@@ -40,7 +40,7 @@ export function GlobalHeader() {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem className="hidden md:block">
-            <BreadcrumbLink href={PATH.HOME}>Home</BreadcrumbLink>
+            <BreadcrumbLink href={PATH.HOME}>ホーム</BreadcrumbLink>
           </BreadcrumbItem>
           {!isHome && (
             <>

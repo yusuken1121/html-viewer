@@ -40,7 +40,23 @@ const nextConfig: NextConfig = {
   },
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }]
+    return [
+      /**
+       * Everything except `/api/docs/<id>/content`, which is rendered inside
+       * an <iframe> and sets its own framing headers in its Route Handler.
+       * A global DENY here would win and leave the viewer blank.
+       */
+      {
+        source: "/((?!api/docs/[^/]+/content$).*)",
+        headers: securityHeaders,
+      },
+      {
+        source: "/api/docs/:id/content",
+        headers: securityHeaders.filter(
+          (header) => header.key !== "X-Frame-Options",
+        ),
+      },
+    ]
   },
 }
 

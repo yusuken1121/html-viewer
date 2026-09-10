@@ -4,9 +4,9 @@ const PORT = 3100
 const baseURL = `http://127.0.0.1:${PORT}`
 
 /**
- * Smoke tests only — enough to catch a broken route guard or a page that no
- * longer renders. They deliberately avoid anything needing a database or a
- * real API key, so `pnpm test:e2e` works on a fresh clone.
+ * Smoke tests only — enough to catch a page that no longer renders or a
+ * header that stops the viewer from framing its document. They run against
+ * the local document store, so `pnpm test:e2e` works on a fresh clone.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -26,14 +26,10 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
-      // Auth.js refuses to verify a session without one. Test-only value.
-      AUTH_SECRET: "e2e-secret-not-used-in-production",
-      // The webhook route constructs the Stripe client before it can check a
-      // signature, so without these an unsigned body is a 500 (misconfigured
-      // server — which Stripe would retry) instead of the 400 under test.
-      // Placeholder values: nothing here ever reaches Stripe.
-      STRIPE_SECRET_KEY: "sk_test_e2e_placeholder",
-      STRIPE_WEBHOOK_SECRET: "whsec_e2e_placeholder",
+      // The local store makes the suite self-contained: no Notion token, and
+      // the fixture in e2e/fixtures is the whole library.
+      DOCS_SOURCE: "local",
+      DOCS_LOCAL_DIR: "e2e/fixtures",
     },
   },
 })

@@ -39,11 +39,6 @@ const eslintConfig = [
       "playwright-report/**",
       "test-results/**",
       "drizzle/**",
-      // Replacement files for `pnpm preset:minimal`. They are alternative
-      // versions of files that already exist, so linting them here would
-      // report duplicate-module and unused-import noise for code that is
-      // correct in the tree it gets copied into.
-      "presets/**",
       "next-env.d.ts",
     ],
   },
@@ -86,7 +81,6 @@ const eslintConfig = [
           "next/*",
           "@tanstack/*",
           "zod",
-          "@google/generative-ai",
           "@notionhq/*",
           "axios",
           "drizzle-orm",
@@ -120,43 +114,8 @@ const eslintConfig = [
 
   // ── features: one vertical slice, never reaching into another ────────────
   {
-    files: ["src/features/auth/**"],
-    ...boundary("feature-auth", [
-      deny(
-        [
-          "@/features/chat",
-          "@/features/chat/**",
-          "@/features/contact",
-          "@/features/contact/**",
-        ],
-        "features must not import each other — promote the shared code to src/core/ or src/lib/.",
-      ),
-      deny(
-        ["@/app/*", "@/app/**"],
-        "features must not import from src/app — routing depends on features, not the other way around.",
-      ),
-    ]),
-  },
-  {
-    files: ["src/features/chat/**"],
-    ...boundary("feature-chat", [
-      deny(
-        ["@/features/contact", "@/features/contact/**"],
-        "features must not import each other — promote the shared code to src/core/ or src/lib/.",
-      ),
-      deny(
-        ["@/app/*", "@/app/**"],
-        "features must not import from src/app — routing depends on features, not the other way around.",
-      ),
-    ]),
-  },
-  {
-    files: ["src/features/contact/**"],
-    ...boundary("feature-contact", [
-      deny(
-        ["@/features/chat", "@/features/chat/**"],
-        "features must not import each other — promote the shared code to src/core/ or src/lib/.",
-      ),
+    files: ["src/features/docs/**"],
+    ...boundary("feature-docs", [
       deny(
         ["@/app/*", "@/app/**"],
         "features must not import from src/app — routing depends on features, not the other way around.",
@@ -197,8 +156,8 @@ const eslintConfig = [
       // Named individually, not by directory: `@/lib/auth/credentials.schema`
       // is a plain Zod schema the sign-in form legitimately shares.
       deny(
-        ["@/lib/env", "@/features/auth/auth", "@/features/auth/session"],
-        "server-only module — it reaches the database or reads secrets. Call a Route Handler instead, or read NEXT_PUBLIC_* from a config file.",
+        ["@/lib/env"],
+        "server-only module — it reads secrets. Call a Route Handler instead, or read NEXT_PUBLIC_* from a config file.",
       ),
     ]),
   },

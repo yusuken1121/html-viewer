@@ -4,14 +4,9 @@
  */
 export const PATH = {
   HOME: "/",
-  CONTACT: "/contact",
+  /** Viewer prefix — the full route is `/docs/[id]`. */
+  DOCS: "/docs",
   SETTINGS: "/settings",
-  AUDIT: "/audit",
-  BILLING: "/billing",
-  SIGN_IN: "/sign-in",
-  SIGN_UP: "/sign-up",
-  FORGOT_PASSWORD: "/forgot-password",
-  RESET_PASSWORD: "/reset-password",
 } as const
 
 export type AppPath = (typeof PATH)[keyof typeof PATH]

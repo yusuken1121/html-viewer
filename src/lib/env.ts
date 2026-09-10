@@ -4,41 +4,19 @@ import { z } from "zod"
 /**
  * Server-only environment variables.
  *
- * Validated **lazily, per key** rather than all at once at import time:
- * a project that only uses Chat must not be forced to configure Notion or a
- * database. Never read `process.env` for a secret outside this module —
- * `no-restricted-properties` in eslint.config.mjs enforces that.
+ * Validated **lazily, per key** rather than all at once at import time, so a
+ * missing variable fails with a named error at the moment it is needed instead
+ * of an opaque SDK crash. Never read `process.env` for a secret outside this
+ * module — `no-restricted-properties` in eslint.config.mjs enforces that.
  *
- * NOTE: to make a client-side import a build error, install the `server-only`
- * package and add `import "server-only"` as the first line of this file.
+ * The `server-only` import makes a client-side import of this file a **build**
+ * error rather than a lint error, so it cannot be disabled away.
  */
 const serverEnvSchema = z.object({
-  /** Chat feature — Google Gemini */
-  GEMINI_API_KEY: z.string().min(1),
-  /** Chat feature — Anthropic Claude (alternative IAIGateway implementation) */
-  ANTHROPIC_API_KEY: z.string().min(1),
-  /** Contact feature — Notion */
+  /** Notion — the document store. */
   NOTION_TOKEN: z.string().min(1),
-  NOTION_CONTACT_DATABASE_ID: z.string().min(1),
-  /** Database — postgres connection string */
-  DATABASE_URL: z.string().min(1),
-  /** Auth.js — signing secret. Generate with `openssl rand -base64 32` */
-  AUTH_SECRET: z.string().min(1),
-  /** OAuth (optional) — enabled only when both are present */
-  AUTH_GITHUB_ID: z.string().min(1),
-  AUTH_GITHUB_SECRET: z.string().min(1),
-  /** Transactional email. Unset falls back to the log sender. */
-  RESEND_API_KEY: z.string().min(1),
-  /** Shared rate limiting. Unset falls back to the in-memory limiter. */
-  UPSTASH_REDIS_REST_URL: z.string().min(1),
-  UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
-  /** Billing — Stripe. The webhook secret is per endpoint; `stripe listen` prints a local one. */
-  STRIPE_SECRET_KEY: z.string().min(1),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1),
-  /** Object storage (S3 / R2 / MinIO) */
-  S3_BUCKET: z.string().min(1),
-  S3_ACCESS_KEY_ID: z.string().min(1),
-  S3_SECRET_ACCESS_KEY: z.string().min(1),
+  /** The database whose rows are the documents. See docs/notion-setup.md. */
+  NOTION_DOCS_DATABASE_ID: z.string().min(1),
 })
 
 export type ServerEnvKey = keyof z.infer<typeof serverEnvSchema>

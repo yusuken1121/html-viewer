@@ -12,8 +12,11 @@ import type { NotionDatabaseConfig } from "./notion-field-mapping.types"
 import { NotionFilterBuilder } from "./notion-filter.builder"
 import { NotionPropertyBuilder } from "./notion-property.builder"
 import { NotionPropertyReader } from "./notion-property.reader"
+import { resolveDataSourceId } from "./notion-data-source"
 import { withNotionRetry } from "./notion-throttle"
 import { NotionWriteError } from "./notion-write.error"
+
+export { NotionDataSourceError } from "./notion-data-source"
 
 type NotionPage = {
   id: string
@@ -26,17 +29,6 @@ type NotionPage = {
 type QueryResponse = {
   results: unknown[]
   next_cursor: string | null
-}
-
-type DatabaseResponse = {
-  data_sources?: Array<{ id: string; name?: string }>
-}
-
-export class NotionDataSourceError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = "NotionDataSourceError"
-  }
 }
 
 /**
@@ -61,40 +53,12 @@ export class ConfigurableNotionRepository<
     this.dataSourceId = config.dataSourceId
   }
 
-  /**
-   * Notion API v5 queries a **data source**, not a database.
-   *
-   * Almost every database has exactly one, so asking the user for an id they
-   * cannot find in any URL would be hostile. Resolve it from the database id
-   * once and remember it; only ambiguity is an error worth raising.
-   */
   private async resolveDataSourceId(): Promise<string> {
     if (this.dataSourceId) return this.dataSourceId
-
-    const database = (await withNotionRetry(() =>
-      this.client.databases.retrieve({
-        database_id: this.config.databaseId,
-      }),
-    )) as unknown as DatabaseResponse
-
-    const sources = database.data_sources ?? []
-
-    if (sources.length === 0) {
-      throw new NotionDataSourceError(
-        `Notion database ${this.config.databaseId} exposes no data source. Check that the integration has access to it.`,
-      )
-    }
-
-    if (sources.length > 1) {
-      const names = sources
-        .map((source) => `${source.name ?? "unnamed"} (${source.id})`)
-        .join(", ")
-      throw new NotionDataSourceError(
-        `Notion database ${this.config.databaseId} has several data sources — set dataSourceId explicitly. Available: ${names}`,
-      )
-    }
-
-    this.dataSourceId = sources[0]!.id
+    this.dataSourceId = await resolveDataSourceId(
+      this.client,
+      this.config.databaseId,
+    )
     return this.dataSourceId
   }
 

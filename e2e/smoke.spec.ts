@@ -1,95 +1,93 @@
 import { expect, test } from "@playwright/test"
 
 /**
- * Smoke tests: enough to catch a broken route guard or a page that no longer
- * renders. Deliberately free of anything needing a database or a real API key,
- * so `pnpm test:e2e` works on a fresh clone.
- *
- * Selectors target roles and labels rather than headings — shadcn/ui renders
- * CardTitle as a div, so `getByRole("heading")` would not find it.
+ * Smoke tests against the local document store (see playwright.config.ts):
+ * no Notion credentials needed, so the suite runs on a fresh clone.
  */
-test.describe("route guard", () => {
-  test("redirects an anonymous visitor from a private page to sign-in", async ({
-    page,
-  }) => {
-    await page.goto("/")
+test("the library lists the fixture document", async ({ page }) => {
+  await page.goto("/")
 
-    await expect(page).toHaveURL(/\/sign-in\?callbackUrl=%2F$/)
-    await expect(page.getByLabel("Email")).toBeVisible()
-    await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible()
-  })
-
-  test("keeps the requested path so sign-in can return the visitor to it", async ({
-    page,
-  }) => {
-    await page.goto("/settings")
-
-    await expect(page).toHaveURL(/callbackUrl=%2Fsettings/)
-  })
-
-  test("keeps the billing page private", async ({ page }) => {
-    await page.goto("/billing")
-
-    await expect(page).toHaveURL(/callbackUrl=%2Fbilling/)
-  })
-
-  test("rejects an unauthenticated API call", async ({ request }) => {
-    const response = await request.post("/api/chat", {
-      data: { messages: [] },
-    })
-
-    expect(response.status()).toBe(401)
-  })
+  await expect(page.getByRole("heading", { name: "ライブラリ" })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: /E2E サンプル講義/ }),
+  ).toBeVisible()
 })
 
-test.describe("public contact form", () => {
-  test("is reachable without an account", async ({ page }) => {
-    await page.goto("/contact")
+test("search narrows the list", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("link", { name: /E2E サンプル講義/ }).waitFor()
 
-    await expect(page).toHaveURL(/\/contact$/)
-    await expect(
-      page.getByRole("button", { name: /send to notion/i }),
-    ).toBeVisible()
-  })
-
-  test("rejects a too-short message before sending anything", async ({
-    page,
-  }) => {
-    await page.goto("/contact")
-
-    await page.getByLabel("Name").fill("Test User")
-    await page.getByLabel("Email").fill("test@example.com")
-    await page.getByLabel("Message").fill("short")
-    await page.getByRole("button", { name: /send to notion/i }).click()
-
-    await expect(page.getByText(/10/)).toBeVisible()
-  })
+  await page.getByLabel("ドキュメントを検索").fill("存在しない語")
+  await expect(page.getByText("一致するドキュメントがありません")).toBeVisible()
 })
 
-test.describe("stripe webhook", () => {
-  test("is reachable without a session but refuses an unsigned body", async ({
-    request,
-  }) => {
-    // Public on purpose — Stripe has no session. The signature is the gate,
-    // and a body that fails it must be a 4xx so Stripe stops retrying it.
-    const response = await request.post("/api/webhooks/stripe", {
-      data: { id: "evt_fake", type: "customer.subscription.updated" },
-      headers: { "stripe-signature": "t=1,v1=forged" },
-    })
+test("opening a document renders it inside the viewer frame", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.getByRole("link", { name: /E2E サンプル講義/ }).click()
 
-    expect(response.status()).toBe(400)
-    expect(await response.json()).toMatchObject({
-      error: expect.stringContaining("signature"),
-    })
-  })
+  await expect(page).toHaveURL(/\/docs\/sample-lecture$/)
+  await expect(
+    page.getByRole("heading", { level: 1, name: "E2E サンプル講義" }),
+  ).toBeVisible()
+
+  const frame = page.frameLocator("iframe[title='E2E サンプル講義']")
+  const headline = frame.locator("#headline")
+  await expect(headline).toHaveText("サンプル講義")
+  // Scripts inside the document must run — the lectures depend on it.
+  await expect(headline).toHaveAttribute("data-scripted", "yes")
 })
 
-test("sets the baseline security headers", async ({ request }) => {
-  const response = await request.get("/contact")
+test("the content route serves HTML that may be framed by this origin", async ({
+  request,
+}) => {
+  const response = await request.get("/api/docs/sample-lecture/content")
+
+  expect(response.status()).toBe(200)
+  expect(response.headers()["content-type"]).toContain("text/html")
+  expect(response.headers()["x-frame-options"]).toBe("SAMEORIGIN")
+  expect(response.headers()["content-security-policy"]).toBe(
+    "frame-ancestors 'self'",
+  )
+  expect(await response.text()).toContain("サンプル講義")
+})
+
+test("an unknown document answers 404 JSON", async ({ request }) => {
+  const response = await request.get("/api/docs/does-not-exist/content")
+
+  expect(response.status()).toBe(404)
+  expect(await response.json()).toMatchObject({ error: expect.any(String) })
+})
+
+test("path traversal in the id is rejected", async ({ request }) => {
+  const response = await request.get("/api/docs/..%2F..%2Fpackage/content")
+
+  expect([400, 404]).toContain(response.status())
+})
+
+test("settings renders", async ({ page }) => {
+  await page.goto("/settings")
+
+  await expect(page.getByRole("button", { name: /light theme/i })).toBeVisible()
+})
+
+test("the health endpoint reports ok", async ({ request }) => {
+  const response = await request.get("/api/health")
+
+  expect(response.status()).toBe(200)
+  expect(await response.json()).toMatchObject({ status: "ok" })
+})
+
+test("the app pages keep the baseline security headers", async ({
+  request,
+}) => {
+  const response = await request.get("/settings")
 
   expect(response.headers()["x-content-type-options"]).toBe("nosniff")
   expect(response.headers()["x-frame-options"]).toBe("DENY")
   expect(response.headers()["referrer-policy"]).toBe(
     "strict-origin-when-cross-origin",
   )
+  expect(response.headers()["content-security-policy"]).toContain("nonce-")
 })
