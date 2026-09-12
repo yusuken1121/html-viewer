@@ -30,6 +30,8 @@ export default defineConfig({
       // the fixture in e2e/fixtures is the whole library.
       DOCS_SOURCE: "local",
       DOCS_LOCAL_DIR: "e2e/fixtures",
+      // Own build directory, so a running `pnpm dev` is left undisturbed.
+      NEXT_DIST_DIR: ".next-e2e",
     },
   },
 })

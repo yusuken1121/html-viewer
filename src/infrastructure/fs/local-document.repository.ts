@@ -1,10 +1,14 @@
-import { readdir, readFile, stat } from "node:fs/promises"
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises"
 import { basename, extname, join, resolve } from "node:path"
 import type {
   DocumentContent,
   HtmlDocument,
+  NewDocument,
 } from "@/core/domain/html-document.entity"
-import { normalizeDocumentTitle } from "@/core/domain/html-document.entity"
+import {
+  extractHtmlTitle,
+  normalizeDocumentTitle,
+} from "@/core/domain/html-document.entity"
 import type { IDocumentRepository } from "@/core/ports/document-repository.port"
 
 const HTML_EXTENSIONS = new Set([".html", ".htm"])
@@ -25,19 +29,20 @@ function isSafeId(id: string): boolean {
   )
 }
 
-/** `<title>` text, decoded just enough for the common entities. */
-export function extractHtmlTitle(html: string): string | null {
-  const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)
-  if (!match) return null
+export { extractHtmlTitle }
 
-  return match[1]!
+/**
+ * Turn an uploaded file name into a safe, readable base name. Anything the
+ * file system or a URL would object to becomes a hyphen; Japanese stays.
+ */
+export function toSafeBaseName(fileName: string): string {
+  const stem = basename(fileName, extname(fileName))
+  const cleaned = stem
+    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "-")
     .replace(/\s+/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .trim()
+    .replace(/^[\s.-]+|[\s.-]+$/g, "")
+    .slice(0, 100)
+  return cleaned.length > 0 ? cleaned : "document"
 }
 
 /**
@@ -86,6 +91,32 @@ export class LocalDocumentRepository implements IDocumentRepository {
     const path = join(this.root, fileName)
     const [html, info] = await Promise.all([readFile(path, "utf8"), stat(path)])
     return { html, updatedAt: info.mtime }
+  }
+
+  /**
+   * Write the file into the directory. Category and tags have nowhere to go
+   * here and are dropped — the local store is a folder, not a database.
+   */
+  async create(input: NewDocument): Promise<HtmlDocument> {
+    await mkdir(this.root, { recursive: true })
+
+    const base = toSafeBaseName(input.fileName)
+    let id = base
+    for (let n = 2; (await this.locate(id)) !== null; n++) {
+      id = `${base}-${n}`
+    }
+
+    const fileName = `${id}.html`
+    // "wx": fail rather than overwrite if something appeared in between.
+    await writeFile(join(this.root, fileName), input.html, {
+      encoding: "utf8",
+      flag: "wx",
+    })
+
+    const document = await this.describe(fileName)
+    if (!document) throw new Error(`Failed to store ${fileName}`)
+    // The caller's title wins over whatever <title> the file carries.
+    return { ...document, title: input.title }
   }
 
   /** Resolve an id back to the file that produced it, if it still exists. */

@@ -14,7 +14,7 @@ type Context = { params: Promise<{ id: string }> }
 export const GET = routeHandler<Context>(
   "GET /api/docs/[id]",
   async (req: NextRequest, { params }) => {
-    await enforceRateLimit(clientKey(req), DOCS_LIST_RATE_LIMIT)
+    await enforceRateLimit(`docs:list:${clientKey(req)}`, DOCS_LIST_RATE_LIMIT)
 
     const id = documentIdSchema.parse((await params).id)
 

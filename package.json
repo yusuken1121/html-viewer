@@ -18,7 +18,8 @@
     "check": "pnpm format:check && pnpm lint && pnpm type-check && pnpm test",
     "prepare": "husky",
     "check:bundle": "tsx scripts/check-bundle-size.ts",
-    "docs:push": "tsx scripts/push-doc.ts"
+    "docs:push": "tsx scripts/push-doc.ts",
+    "docs:init-db": "tsx scripts/init-notion-db.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

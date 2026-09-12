@@ -80,6 +80,22 @@ export async function apiPost<TResponse, TBody = unknown>(
 }
 
 /**
+ * POST a multipart form (file uploads). Setting the type to
+ * `multipart/form-data` without a boundary makes Axios hand the body to the
+ * browser, which fills in the boundary itself.
+ */
+export async function apiPostForm<TResponse>(
+  url: string,
+  form: FormData,
+  headers?: Record<string, string>,
+): Promise<TResponse> {
+  const response = await apiClient.post<TResponse>(url, form, {
+    headers: { ...headers, "Content-Type": "multipart/form-data" },
+  })
+  return response.data
+}
+
+/**
  * POST that returns the raw `Response` so the caller can read a stream.
  * Axios buffers the whole body, so streaming endpoints use `fetch` directly —
  * error normalization stays identical to `apiPost`.

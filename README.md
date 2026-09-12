@@ -37,13 +37,20 @@ DOCS_SOURCE=local pnpm dev
 
 ## ドキュメントの追加
 
+- **アプリで**: 右上の「追加」→ HTML をドロップ → タイトルは `<title>` から自動入力 → アップロード
 - **Notion で**: 行を追加して File 列に HTML をドラッグ（スマホからも可）
 - **ターミナルで**: `pnpm docs:push lecture.html --category SAA --tags IAM,VPC`
 
+アプリからのアップロードは、環境変数 `DOCS_UPLOAD_SECRET` を設定すると
+そのキーを知る人だけができます。公開 URL に置くなら必ず設定してください。
+ローカルモード（`DOCS_SOURCE=local`）ではファイルが `content/` に保存され、
+カテゴリとタグは保持されません。
+
 ## デプロイ（Vercel）
 
-リポジトリを Vercel にインポートし、環境変数に `NOTION_TOKEN` と
-`NOTION_DOCS_DATABASE_ID`（必要なら `NEXT_PUBLIC_APP_URL`）を設定するだけです。
+リポジトリを Vercel にインポートし、環境変数に `NOTION_TOKEN`、
+`NOTION_DOCS_DATABASE_ID`、`DOCS_UPLOAD_SECRET`（必要なら `NEXT_PUBLIC_APP_URL`）
+を設定するだけです。
 Dockerfile も同梱しているので、任意の Node ホストでも動きます。
 
 ## 構成

@@ -2,14 +2,19 @@ import type { Client } from "@notionhq/client"
 import type {
   DocumentContent,
   HtmlDocument,
+  NewDocument,
 } from "@/core/domain/html-document.entity"
-import { normalizeDocumentTitle } from "@/core/domain/html-document.entity"
+import {
+  MAX_DOCUMENT_BYTES,
+  normalizeDocumentTitle,
+} from "@/core/domain/html-document.entity"
 import { toNotionPageUrl } from "@/core/domain/notion-page-ref.vo"
 import type { IDocumentRepository } from "@/core/ports/document-repository.port"
 import { NotionClientFactory } from "./notion-client.factory"
 import { resolveDataSourceId } from "./notion-data-source"
 import { NotionPropertyReader } from "./notion-property.reader"
-import { withNotionRetry } from "./notion-throttle"
+import { throttleNotion, withNotionRetry } from "./notion-throttle"
+import { DocumentUploadTimeoutError } from "@/core/domain/html-document.entity"
 import { NotionWriteError } from "./notion-write.error"
 
 /**
@@ -56,8 +61,49 @@ type QueryResponse = {
 const PAGE_SIZE = 100
 const MAX_PAGES = 10
 
-/** Refuse to proxy anything absurd — an HTML lecture is a few hundred KB. */
-export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
+export { MAX_DOCUMENT_BYTES }
+
+/**
+ * How long an upload may take before it is abandoned.
+ *
+ * Sized for a slow connection rather than a fast one: a 2 MB lecture over a
+ * poor link legitimately needs tens of seconds, and failing a good upload is
+ * worse than waiting. The floor covers the handshake and Notion's own latency.
+ */
+const UPLOAD_TIMEOUT_FLOOR_MS = 20_000
+/** Budget per byte — roughly 30 KB/s, i.e. a deliberately pessimistic link. */
+const UPLOAD_MS_PER_BYTE = 1 / 30
+
+function uploadTimeoutMs(bytes: number): number {
+  return Math.min(UPLOAD_TIMEOUT_FLOOR_MS + bytes * UPLOAD_MS_PER_BYTE, 180_000)
+}
+
+/**
+ * Rejects with a `DocumentUploadTimeoutError` when the upload outlives its
+ * budget. The underlying request is left to unwind on its own — Notion's
+ * upload object expires by itself, so an abandoned one costs nothing.
+ */
+async function withUploadTimeout<T>(
+  operation: Promise<T>,
+  bytes: number,
+): Promise<T> {
+  const limit = uploadTimeoutMs(bytes)
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new DocumentUploadTimeoutError(bytes, limit)),
+          limit,
+        )
+      }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
 
 function pick<T>(value: unknown, key: string): T | undefined {
   if (typeof value !== "object" || value === null) return undefined
@@ -173,6 +219,96 @@ export class NotionDocumentRepository implements IDocumentRepository {
     }
 
     return { html, updatedAt: new Date(page.last_edited_time) }
+  }
+
+  /**
+   * Upload the file, then create the row pointing at it.
+   *
+   * Three Notion calls. The first two are idempotent enough to retry (an
+   * orphaned upload object is harmless and expires on its own); the page
+   * creation is not — a retried create that had actually succeeded would
+   * leave a duplicate row — so it goes through the throttle only.
+   */
+  /**
+   * Upload the file, then create the row pointing at it.
+   *
+   * Three Notion calls. The small metadata calls are retried; the file send
+   * deliberately is NOT — retrying a multi-megabyte body on a slow link turns
+   * one slow upload into four, and the caller is already waiting. It is also
+   * the one call that can leave a duplicate if it half-succeeded.
+   *
+   * Everything is bounded by `UPLOAD_TIMEOUT_MS`. Without it a stalled
+   * connection leaves the request hanging until the browser gives up, which
+   * reads to the user as "the button does nothing".
+   */
+  async create(input: NewDocument): Promise<HtmlDocument> {
+    const dataSourceId = await this.resolve()
+    const { properties } = this.config
+
+    try {
+      const upload = await withNotionRetry(() =>
+        this.client.fileUploads.create({
+          mode: "single_part",
+          filename: input.fileName,
+          content_type: "text/html",
+        }),
+      )
+
+      await withUploadTimeout(
+        throttleNotion(() =>
+          this.client.fileUploads.send({
+            file_upload_id: upload.id,
+            file: {
+              data: new Blob([input.html], { type: "text/html" }),
+              filename: input.fileName,
+            },
+          }),
+        ),
+        input.html.length,
+      )
+
+      const pageProperties: Record<string, unknown> = {
+        [properties.title]: { title: [{ text: { content: input.title } }] },
+        [properties.file]: {
+          files: [
+            {
+              type: "file_upload",
+              file_upload: { id: upload.id },
+              name: input.fileName,
+            },
+          ],
+        },
+      }
+
+      // Only touch the optional columns when there is something to write, so
+      // a database created without them still accepts uploads.
+      if (properties.category && input.category) {
+        pageProperties[properties.category] = {
+          select: { name: input.category },
+        }
+      }
+      if (properties.tags && input.tags.length > 0) {
+        pageProperties[properties.tags] = {
+          multi_select: input.tags.map((name) => ({ name })),
+        }
+      }
+
+      const page = (await throttleNotion(() =>
+        this.client.pages.create({
+          parent: { type: "data_source_id", data_source_id: dataSourceId },
+          properties: pageProperties as never,
+        }),
+      )) as unknown as NotionPage
+
+      return this.toDocument(page)
+    } catch (error) {
+      if (error instanceof DocumentUploadTimeoutError) throw error
+      if (error instanceof NotionWriteError) throw error
+      throw new NotionWriteError(
+        "Failed to upload the document to Notion",
+        error,
+      )
+    }
   }
 
   private async resolve(): Promise<string> {

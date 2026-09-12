@@ -47,3 +47,26 @@ export function toDocumentDto(document: HtmlDocument): DocumentDto {
     updatedAt,
   }
 }
+
+/**
+ * The text fields of the upload form. The file itself is checked in the
+ * Route Handler (is it a File, is it under the size cap) and then by the
+ * domain rules in `assertValidNewDocument`.
+ */
+export const uploadFieldsSchema = z.object({
+  title: z.string().trim().max(200).default(""),
+  category: z.string().trim().max(50).default(""),
+  /** Comma- or whitespace-separated; split by `parseTags`. */
+  tags: z.string().trim().max(1000).default(""),
+})
+
+export type UploadFields = z.infer<typeof uploadFieldsSchema>
+
+export function parseTags(raw: string): string[] {
+  const seen = new Set<string>()
+  for (const part of raw.split(/[,、\s]+/)) {
+    const tag = part.trim()
+    if (tag) seen.add(tag)
+  }
+  return [...seen]
+}

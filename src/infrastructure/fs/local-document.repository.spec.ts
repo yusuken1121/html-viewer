@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   LocalDocumentRepository,
   extractHtmlTitle,
+  toSafeBaseName,
 } from "./local-document.repository"
 
 describe("extractHtmlTitle", () => {
@@ -74,5 +75,60 @@ describe("LocalDocumentRepository", () => {
     expect(
       await new LocalDocumentRepository(join(dir, "missing")).list(),
     ).toEqual([])
+  })
+})
+
+describe("LocalDocumentRepository.create", () => {
+  let dir: string
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "html-viewer-create-"))
+  })
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  const upload = {
+    title: "S3 完全講義",
+    fileName: "S3 完全講義.html",
+    html: "<!doctype html><html><title>S3</title><body>x</body></html>",
+    category: "SAA",
+    tags: ["S3"],
+  }
+
+  it("writes the file into a directory that did not exist and reads it back", async () => {
+    const repo = new LocalDocumentRepository(join(dir, "fresh"))
+
+    const created = await repo.create(upload)
+
+    expect(created).toMatchObject({
+      id: "S3 完全講義",
+      title: "S3 完全講義",
+      fileName: "S3 完全講義.html",
+      hasFile: true,
+      // the folder has no metadata columns
+      category: null,
+      tags: [],
+    })
+    expect((await repo.readContent(created.id))?.html).toBe(upload.html)
+  })
+
+  it("never overwrites: a second upload with the same name gets a suffix", async () => {
+    const repo = new LocalDocumentRepository(dir)
+
+    const first = await repo.create(upload)
+    const second = await repo.create({ ...upload, html: "<html>2</html>" })
+
+    expect(first.id).toBe("S3 完全講義")
+    expect(second.id).toBe("S3 完全講義-2")
+    expect((await repo.readContent(first.id))?.html).toBe(upload.html)
+  })
+
+  it("sanitises hostile file names", () => {
+    expect(toSafeBaseName("../../etc/passwd.html")).toBe("passwd")
+    expect(toSafeBaseName("a:b*c?.htm")).toBe("a-b-c")
+    expect(toSafeBaseName("....html")).toBe("document")
+    expect(toSafeBaseName("  講義 ノート .html")).toBe("講義 ノート")
   })
 })

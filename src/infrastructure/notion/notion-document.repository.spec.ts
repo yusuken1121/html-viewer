@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { DocumentUploadTimeoutError } from "@/core/domain/html-document.entity"
 import type { Client } from "@notionhq/client"
 import {
   NotionDocumentRepository,
@@ -207,5 +208,139 @@ describe("NotionDocumentRepository", () => {
 
     const repo = new NotionDocumentRepository(CONFIG, client, download as never)
     await expect(repo.readContent("page-1")).rejects.toThrow(/non-HTTPS/)
+  })
+})
+
+describe("NotionDocumentRepository.create", () => {
+  it("uploads the file, then creates the row pointing at it", async () => {
+    const uploadCreate = vi.fn().mockResolvedValue({ id: "upload-1" })
+    const uploadSend = vi
+      .fn()
+      .mockResolvedValue({ id: "upload-1", status: "uploaded" })
+    const pagesCreate = vi.fn().mockResolvedValue(page({ id: "new-page" }))
+    const client = {
+      fileUploads: { create: uploadCreate, send: uploadSend },
+      pages: { create: pagesCreate },
+    } as unknown as Client
+
+    const repo = new NotionDocumentRepository(CONFIG, client)
+    const created = await repo.create({
+      title: "IAM 完全講義",
+      fileName: "iam.html",
+      html: "<html>iam</html>",
+      category: "SAA",
+      tags: ["IAM"],
+    })
+
+    expect(uploadCreate).toHaveBeenCalledWith({
+      mode: "single_part",
+      filename: "iam.html",
+      content_type: "text/html",
+    })
+    expect(uploadSend).toHaveBeenCalledWith(
+      expect.objectContaining({ file_upload_id: "upload-1" }),
+    )
+    const sentBlob = uploadSend.mock.calls[0]![0].file.data as Blob
+    expect(await sentBlob.text()).toBe("<html>iam</html>")
+
+    expect(pagesCreate).toHaveBeenCalledWith({
+      parent: { type: "data_source_id", data_source_id: "ds-1" },
+      properties: {
+        Name: { title: [{ text: { content: "IAM 完全講義" } }] },
+        File: {
+          files: [
+            {
+              type: "file_upload",
+              file_upload: { id: "upload-1" },
+              name: "iam.html",
+            },
+          ],
+        },
+        Category: { select: { name: "SAA" } },
+        Tags: { multi_select: [{ name: "IAM" }] },
+      },
+    })
+    expect(created.id).toBe("new-page")
+  })
+
+  it("leaves optional columns out when they are empty", async () => {
+    const pagesCreate = vi.fn().mockResolvedValue(page())
+    const client = {
+      fileUploads: {
+        create: vi.fn().mockResolvedValue({ id: "u" }),
+        send: vi.fn().mockResolvedValue({}),
+      },
+      pages: { create: pagesCreate },
+    } as unknown as Client
+
+    await new NotionDocumentRepository(CONFIG, client).create({
+      title: "t",
+      fileName: "t.html",
+      html: "<html></html>",
+      category: null,
+      tags: [],
+    })
+
+    const sent = pagesCreate.mock.calls[0]![0].properties
+    expect(Object.keys(sent)).toEqual(["Name", "File"])
+  })
+})
+
+describe("NotionDocumentRepository.create — slow connections", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function clientWithHangingSend() {
+    return {
+      fileUploads: {
+        create: vi.fn().mockResolvedValue({ id: "u" }),
+        // Never settles — a stalled upload, which is what a bad link looks like.
+        send: vi.fn().mockReturnValue(new Promise(() => {})),
+      },
+      pages: { create: vi.fn() },
+    } as unknown as Client
+  }
+
+  it("gives up with a timeout error instead of hanging forever", async () => {
+    const client = clientWithHangingSend()
+    const repo = new NotionDocumentRepository(CONFIG, client)
+
+    const promise = repo.create({
+      title: "big",
+      fileName: "big.html",
+      html: "x".repeat(100_000),
+      category: null,
+      tags: [],
+    })
+    const assertion = expect(promise).rejects.toBeInstanceOf(
+      DocumentUploadTimeoutError,
+    )
+
+    await vi.advanceTimersByTimeAsync(200_000)
+    await assertion
+  })
+
+  it("does not retry the file send — one slow upload must not become four", async () => {
+    const client = clientWithHangingSend()
+    const repo = new NotionDocumentRepository(CONFIG, client)
+
+    const promise = repo.create({
+      title: "big",
+      fileName: "big.html",
+      html: "x".repeat(10_000),
+      category: null,
+      tags: [],
+    })
+    const assertion = expect(promise).rejects.toThrow()
+
+    await vi.advanceTimersByTimeAsync(200_000)
+    await assertion
+
+    expect(client.fileUploads.send).toHaveBeenCalledTimes(1)
   })
 })

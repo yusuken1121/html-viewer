@@ -1,9 +1,10 @@
-import { Library, Settings } from "lucide-react"
+import { Library, Settings, Upload } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { PATH } from "@/constants/path"
 
 export const MENU_KEYS = {
   LIBRARY: "library",
+  UPLOAD: "upload",
   SETTINGS: "settings",
 } as const
 
@@ -28,6 +29,12 @@ export const SIDEBAR_CONFIG: Record<MenuKey, SidebarItemConfig> = {
     icon: Library,
     activeColor: "text-blue-600 dark:text-blue-400",
   },
+  [MENU_KEYS.UPLOAD]: {
+    label: "アップロード",
+    path: PATH.UPLOAD,
+    icon: Upload,
+    activeColor: "text-emerald-600 dark:text-emerald-400",
+  },
   [MENU_KEYS.SETTINGS]: {
     label: "設定",
     path: PATH.SETTINGS,
@@ -35,7 +42,7 @@ export const SIDEBAR_CONFIG: Record<MenuKey, SidebarItemConfig> = {
   },
 }
 
-export const mainSidebar: MenuKey[] = [MENU_KEYS.LIBRARY]
+export const mainSidebar: MenuKey[] = [MENU_KEYS.LIBRARY, MENU_KEYS.UPLOAD]
 export const manageSidebar: MenuKey[] = [MENU_KEYS.SETTINGS]
 export const adminSidebar: MenuKey[] = []
 export const footerSidebar: MenuKey[] = []

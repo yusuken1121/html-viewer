@@ -28,7 +28,10 @@ type Context = { params: Promise<{ id: string }> }
 export const GET = routeHandler<Context>(
   "GET /api/docs/[id]/content",
   async (req: NextRequest, { params }) => {
-    await enforceRateLimit(clientKey(req), DOCS_CONTENT_RATE_LIMIT)
+    await enforceRateLimit(
+      `docs:content:${clientKey(req)}`,
+      DOCS_CONTENT_RATE_LIMIT,
+    )
 
     const id = documentIdSchema.parse((await params).id)
     const versioned = req.nextUrl.searchParams.has("v")

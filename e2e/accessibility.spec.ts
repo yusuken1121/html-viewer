@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test"
  * broken landmark structure. It is a floor, not a certificate: keyboard order
  * and screen-reader wording still need a person.
  */
-const PAGES = ["/", "/settings", "/docs/sample-lecture"]
+const PAGES = ["/", "/upload", "/settings", "/docs/sample-lecture"]
 
 for (const path of PAGES) {
   test(`${path} has no detectable accessibility violations`, async ({

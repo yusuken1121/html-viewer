@@ -32,6 +32,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Emits a self-contained server bundle for the Docker image.
   output: "standalone",
+  // Lets `pnpm test:e2e` start its own dev server while `pnpm dev` is already
+  // running: two servers sharing one `.next` corrupt each other's output.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   turbopack: {
     // Pin the workspace root. Without it Turbopack walks up looking for a
     // lockfile and can pick one from a parent directory (a stray

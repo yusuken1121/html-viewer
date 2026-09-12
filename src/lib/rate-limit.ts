@@ -78,6 +78,10 @@ export function setRateLimiter(next: IRateLimiter): void {
 /**
  * Identify the caller: the signed-in user when known, otherwise the client IP.
  * Falls back to a shared bucket rather than to "unlimited".
+ *
+ * The limiter counts per key, not per key-and-rule, so two routes that pass
+ * the bare result share one counter — and the one with the smaller limit gets
+ * blocked by traffic to the other. Prefix it per route: `` `upload:${clientKey(req)}` ``.
  */
 export function clientKey(req: NextRequest, userId?: string): string {
   if (userId) return `user:${userId}`

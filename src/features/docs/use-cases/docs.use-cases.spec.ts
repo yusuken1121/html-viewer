@@ -2,15 +2,18 @@ import { describe, expect, it } from "vitest"
 import type {
   DocumentContent,
   HtmlDocument,
+  NewDocument,
 } from "@/core/domain/html-document.entity"
 import {
   DocumentHasNoFileError,
   DocumentNotFoundError,
+  InvalidDocumentUploadError,
 } from "@/core/domain/html-document.entity"
 import type { IDocumentRepository } from "@/core/ports/document-repository.port"
 import { GetDocumentContentUseCase } from "./get-document-content.use-case"
 import { GetDocumentUseCase } from "./get-document.use-case"
 import { ListDocumentsUseCase } from "./list-documents.use-case"
+import { UploadDocumentUseCase } from "./upload-document.use-case"
 
 function doc(id: string, updatedAt: string, hasFile = true): HtmlDocument {
   return {
@@ -44,6 +47,16 @@ class FakeRepository implements IDocumentRepository {
     const html = this.bodies[id]
     if (!html) return null
     return { html, updatedAt: new Date("2026-09-10T00:00:00Z") }
+  }
+
+  created: NewDocument[] = []
+
+  async create(input: NewDocument): Promise<HtmlDocument> {
+    this.created.push(input)
+    return {
+      ...doc(`new-${this.created.length}`, "2026-09-12T00:00:00Z"),
+      title: input.title,
+    }
   }
 }
 
@@ -93,5 +106,55 @@ describe("GetDocumentContentUseCase", () => {
     await expect(useCase.execute("ghost")).rejects.toBeInstanceOf(
       DocumentNotFoundError,
     )
+  })
+})
+
+describe("UploadDocumentUseCase", () => {
+  const html =
+    "<!doctype html><html><head><title>VPC 完全講義</title></head><body>x</body></html>"
+
+  it("fills the title from <title> and tidies category and tags", async () => {
+    const repo = new FakeRepository([])
+
+    const result = await new UploadDocumentUseCase(repo).execute({
+      title: "   ",
+      fileName: "vpc.html",
+      html,
+      category: "  SAA ",
+      tags: [" VPC", "", "ネットワーク "],
+    })
+
+    expect(repo.created[0]).toMatchObject({
+      title: "VPC 完全講義",
+      category: "SAA",
+      tags: ["VPC", "ネットワーク"],
+    })
+    expect(result.title).toBe("VPC 完全講義")
+  })
+
+  it("falls back to the file name when the HTML has no title", async () => {
+    const repo = new FakeRepository([])
+    await new UploadDocumentUseCase(repo).execute({
+      title: "",
+      fileName: "s3-notes.HTML",
+      html: "<html><body>no title</body></html>",
+      category: "",
+      tags: [],
+    })
+    expect(repo.created[0]).toMatchObject({ title: "s3-notes", category: null })
+  })
+
+  it("refuses a non-HTML upload before touching the store", async () => {
+    const repo = new FakeRepository([])
+    await expect(
+      new UploadDocumentUseCase(repo).execute({
+        title: "",
+        fileName: "notes.txt",
+        html,
+        category: null,
+        tags: [],
+      }),
+    ).rejects.toBeInstanceOf(InvalidDocumentUploadError)
+    expect(repo.created).toHaveLength(0)
   })
 })

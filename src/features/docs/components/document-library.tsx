@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { AlertCircle, Inbox, RefreshCcw, Search } from "lucide-react"
+import Link from "next/link"
+import { AlertCircle, Inbox, Plus, RefreshCcw, Search } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PATH } from "@/constants/path"
 import { cn } from "@/lib/utils"
 import { useDocuments } from "../api/use-docs"
 import type { DocumentDto } from "../docs.schema"
@@ -65,13 +67,21 @@ export function DocumentLibrary() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">ライブラリ</h1>
-        <p className="text-sm text-muted-foreground">
-          {data
-            ? `${data.length} 件のドキュメント`
-            : "ドキュメントを読み込んでいます"}
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold tracking-tight">ライブラリ</h1>
+          <p className="text-sm text-muted-foreground">
+            {data
+              ? `${data.length} 件のドキュメント`
+              : "ドキュメントを読み込んでいます"}
+          </p>
+        </div>
+        <Button asChild>
+          <Link href={PATH.UPLOAD}>
+            <Plus className="size-4" />
+            追加
+          </Link>
+        </Button>
       </header>
 
       <div className="flex flex-col gap-3">
@@ -160,8 +170,9 @@ export function DocumentLibrary() {
             </EmptyMedia>
             <EmptyTitle>まだドキュメントがありません</EmptyTitle>
             <EmptyDescription>
-              Notion のデータベースに行を追加し、File 列に HTML
-              ファイルをドラッグしてください。30 秒ほどでここに現れます。
+              右上の「追加」から HTML ファイルをアップロードするか、Notion
+              のデータベースに行を追加して File
+              列にファイルをドラッグしてください。
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

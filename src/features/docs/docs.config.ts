@@ -20,3 +20,15 @@ export function documentContentPath(id: string, version?: string): string {
 export function documentViewerPath(id: string): string {
   return `/docs/${encodeURIComponent(id)}`
 }
+
+/** Uploads write to the store; keep the anonymous budget small. */
+export const DOCS_UPLOAD_RATE_LIMIT = { limit: 10, windowMs: 60_000 }
+
+/**
+ * Optional shared secret for uploads (env `DOCS_UPLOAD_SECRET`). Sent as a
+ * header, remembered in the browser once accepted. See `domain/upload-key.ts`.
+ */
+export const UPLOAD_KEY_HEADER = "x-upload-key"
+export const UPLOAD_KEY_STORAGE_KEY = "html-viewer.upload-key"
+
+export const UPLOAD_PATH = "/upload"
