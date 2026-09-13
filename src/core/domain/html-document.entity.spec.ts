@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest"
 import {
   DocumentHasNoFileError,
   DocumentNotFoundError,
+  DocumentUpdateNotSupportedError,
+  InvalidDocumentUpdateError,
   InvalidDocumentUploadError,
   MAX_DOCUMENT_BYTES,
   MAX_TAGS,
+  assertValidDocumentUpdate,
   assertValidNewDocument,
   extractHtmlTitle,
+  isEmptyDocumentUpdate,
   normalizeDocumentTitle,
   type NewDocument,
 } from "./html-document.entity"
@@ -106,5 +110,48 @@ describe("assertValidNewDocument", () => {
 
   it("answers 400", () => {
     expect(new InvalidDocumentUploadError("x").status).toBe(400)
+  })
+})
+
+describe("assertValidDocumentUpdate", () => {
+  it("accepts a patch that touches one field", () => {
+    expect(() =>
+      assertValidDocumentUpdate({ title: "正しい題名" }),
+    ).not.toThrow()
+    expect(() => assertValidDocumentUpdate({ category: null })).not.toThrow()
+    expect(() => assertValidDocumentUpdate({})).not.toThrow()
+  })
+
+  it("rejects an empty or oversized title", () => {
+    expect(() => assertValidDocumentUpdate({ title: "  " })).toThrow(
+      InvalidDocumentUpdateError,
+    )
+    expect(() => assertValidDocumentUpdate({ title: "x".repeat(201) })).toThrow(
+      /タイトルは/,
+    )
+  })
+
+  it("rejects too many or malformed tags", () => {
+    expect(() =>
+      assertValidDocumentUpdate({
+        tags: Array.from({ length: MAX_TAGS + 1 }, (_, i) => `t${i}`),
+      }),
+    ).toThrow(/タグは/)
+    expect(() => assertValidDocumentUpdate({ tags: ["", "ok"] })).toThrow(
+      InvalidDocumentUpdateError,
+    )
+  })
+
+  it("answers 400, while an unsupported store answers 409", () => {
+    expect(new InvalidDocumentUpdateError("x").status).toBe(400)
+    expect(new DocumentUpdateNotSupportedError("タグ").status).toBe(409)
+  })
+})
+
+describe("isEmptyDocumentUpdate", () => {
+  it("tells an untouched patch from one that clears a field", () => {
+    expect(isEmptyDocumentUpdate({})).toBe(true)
+    expect(isEmptyDocumentUpdate({ category: null })).toBe(false)
+    expect(isEmptyDocumentUpdate({ tags: [] })).toBe(false)
   })
 })

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { FileUp, KeyRound, Loader2, X } from "lucide-react"
+import { FileUp, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -22,26 +22,11 @@ import {
 import { ApiError } from "@/lib/api/api-client"
 import { cn } from "@/lib/utils"
 import { useDocuments, useUploadDocument } from "../api/use-docs"
-import { UPLOAD_KEY_STORAGE_KEY, documentViewerPath } from "../docs.config"
+import { documentViewerPath } from "../docs.config"
+import { readUploadKey, storeUploadKey } from "../upload-key.storage"
+import { UploadKeyField } from "./upload-key-field"
 
 const HTML_FILE = /\.html?$/i
-
-function readStoredKey(): string {
-  try {
-    return window.localStorage.getItem(UPLOAD_KEY_STORAGE_KEY) ?? ""
-  } catch {
-    return ""
-  }
-}
-
-function storeKey(key: string): void {
-  try {
-    if (key) window.localStorage.setItem(UPLOAD_KEY_STORAGE_KEY, key)
-    else window.localStorage.removeItem(UPLOAD_KEY_STORAGE_KEY)
-  } catch {
-    // Private mode or blocked storage — the key just has to be typed again.
-  }
-}
 
 /** Client-side pre-check so the obvious mistakes never leave the browser. */
 function fileProblem(file: File): string | null {
@@ -84,7 +69,7 @@ export function DocumentUploadForm() {
   const [dragging, setDragging] = useState(false)
 
   useEffect(() => {
-    const stored = readStoredKey()
+    const stored = readUploadKey()
     if (stored) {
       setUploadKey(stored)
       setNeedsKey(true)
@@ -104,14 +89,14 @@ export function DocumentUploadForm() {
 
   const { mutate, isPending } = useUploadDocument({
     onSuccess: (created) => {
-      storeKey(uploadKey)
+      storeUploadKey(uploadKey)
       toast.success(`「${created.title}」を追加しました`)
       router.push(documentViewerPath(created.id))
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 401) {
         setNeedsKey(true)
-        storeKey("")
+        storeUploadKey("")
       }
       toast.error(error.message)
     },
@@ -303,26 +288,11 @@ export function DocumentUploadForm() {
             </div>
 
             {needsKey && (
-              <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-4">
-                <Label
-                  htmlFor={`${inputId}-key`}
-                  className="flex items-center gap-2"
-                >
-                  <KeyRound className="size-4" aria-hidden="true" />
-                  アップロードキー
-                </Label>
-                <Input
-                  id={`${inputId}-key`}
-                  type="password"
-                  autoComplete="off"
-                  value={uploadKey}
-                  onChange={(event) => setUploadKey(event.target.value)}
-                  placeholder="サーバーの DOCS_UPLOAD_SECRET"
-                />
-                <p className="text-xs text-muted-foreground">
-                  一度通ればこのブラウザに記憶されます。
-                </p>
-              </div>
+              <UploadKeyField
+                id={`${inputId}-key`}
+                value={uploadKey}
+                onChange={setUploadKey}
+              />
             )}
 
             <div className="flex items-center justify-end gap-3">

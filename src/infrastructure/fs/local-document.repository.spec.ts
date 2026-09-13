@@ -1,11 +1,23 @@
-import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises"
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  utimes,
+  writeFile,
+} from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
+  DocumentNotFoundError,
+  DocumentUpdateNotSupportedError,
+} from "@/core/domain/html-document.entity"
+import {
   LocalDocumentRepository,
   extractHtmlTitle,
   toSafeBaseName,
+  withHtmlTitle,
 } from "./local-document.repository"
 
 describe("extractHtmlTitle", () => {
@@ -130,5 +142,101 @@ describe("LocalDocumentRepository.create", () => {
     expect(toSafeBaseName("a:b*c?.htm")).toBe("a-b-c")
     expect(toSafeBaseName("....html")).toBe("document")
     expect(toSafeBaseName("  講義 ノート .html")).toBe("講義 ノート")
+  })
+})
+
+describe("withHtmlTitle", () => {
+  it("replaces an existing title", () => {
+    expect(withHtmlTitle("<head><title>old</title></head>", "new")).toBe(
+      "<head><title>new</title></head>",
+    )
+  })
+
+  it("adds one to a head that has none", () => {
+    expect(withHtmlTitle("<html><head><meta></head>", "new")).toBe(
+      "<html><head><title>new</title><meta></head>",
+    )
+  })
+
+  it("escapes markup in the title", () => {
+    expect(withHtmlTitle("<title>x</title>", "a & <b>")).toBe(
+      "<title>a &amp; &lt;b&gt;</title>",
+    )
+  })
+})
+
+describe("LocalDocumentRepository.update", () => {
+  let dir: string
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "html-viewer-edit-"))
+    await writeFile(
+      join(dir, "iam.html"),
+      "<html><head><title>IAM</title></head><body>a</body></html>",
+    )
+  })
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  it("rewrites the file's own title", async () => {
+    const repo = new LocalDocumentRepository(dir)
+
+    const updated = await repo.update("iam", { title: "IAM 完全講義" })
+
+    expect(updated.title).toBe("IAM 完全講義")
+    expect(await readFile(join(dir, "iam.html"), "utf8")).toContain(
+      "<title>IAM 完全講義</title>",
+    )
+  })
+
+  it("refuses metadata a folder cannot hold, without touching the file", async () => {
+    const repo = new LocalDocumentRepository(dir)
+    const before = await readFile(join(dir, "iam.html"), "utf8")
+
+    await expect(
+      repo.update("iam", { title: "x", category: "SAA" }),
+    ).rejects.toBeInstanceOf(DocumentUpdateNotSupportedError)
+    await expect(repo.update("iam", { tags: ["IAM"] })).rejects.toBeInstanceOf(
+      DocumentUpdateNotSupportedError,
+    )
+    expect(await readFile(join(dir, "iam.html"), "utf8")).toBe(before)
+  })
+
+  it("throws not found for an unknown id", async () => {
+    await expect(
+      new LocalDocumentRepository(dir).update("ghost", { title: "x" }),
+    ).rejects.toBeInstanceOf(DocumentNotFoundError)
+  })
+})
+
+describe("LocalDocumentRepository.remove", () => {
+  let dir: string
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "html-viewer-delete-"))
+    await writeFile(join(dir, "iam.html"), "<title>IAM</title>")
+  })
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true })
+  })
+
+  it("moves the file to .trash instead of deleting it", async () => {
+    const repo = new LocalDocumentRepository(dir)
+
+    await repo.remove("iam")
+
+    expect(await repo.list()).toEqual([])
+    const trashed = await readdir(join(dir, ".trash"))
+    expect(trashed).toHaveLength(1)
+    expect(trashed[0]).toMatch(/iam\.html$/)
+  })
+
+  it("throws not found for an unknown id", async () => {
+    await expect(
+      new LocalDocumentRepository(dir).remove("ghost"),
+    ).rejects.toBeInstanceOf(DocumentNotFoundError)
   })
 })

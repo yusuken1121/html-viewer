@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { DocumentUploadTimeoutError } from "@/core/domain/html-document.entity"
+import {
+  DocumentNotFoundError,
+  DocumentUpdateNotSupportedError,
+  DocumentUploadTimeoutError,
+} from "@/core/domain/html-document.entity"
 import type { Client } from "@notionhq/client"
 import {
   NotionDocumentRepository,
@@ -342,5 +346,103 @@ describe("NotionDocumentRepository.create — slow connections", () => {
     await assertion
 
     expect(client.fileUploads.send).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("NotionDocumentRepository.update", () => {
+  function repoWith(update: ReturnType<typeof vi.fn>) {
+    const client = { pages: { update } } as unknown as Client
+    return new NotionDocumentRepository(CONFIG, client)
+  }
+
+  beforeEach(() => {
+    resetNotionThrottle()
+  })
+
+  it("sends only the columns that were given", async () => {
+    const update = vi.fn().mockResolvedValue(page())
+
+    await repoWith(update).update("page-1", { title: "正しい題名" })
+
+    expect(update).toHaveBeenCalledWith({
+      page_id: "page-1",
+      properties: { Name: { title: [{ text: { content: "正しい題名" } }] } },
+    })
+  })
+
+  it("clears a category with null and tags with an empty list", async () => {
+    const update = vi.fn().mockResolvedValue(page())
+
+    await repoWith(update).update("page-1", { category: null, tags: [] })
+
+    expect(update.mock.calls[0]![0].properties).toEqual({
+      Category: { select: null },
+      Tags: { multi_select: [] },
+    })
+  })
+
+  it("reads the row back instead of sending an empty patch", async () => {
+    const update = vi.fn()
+    const retrieve = vi.fn().mockResolvedValue(page())
+    const client = {
+      pages: { update, retrieve },
+    } as unknown as Client
+
+    const result = await new NotionDocumentRepository(CONFIG, client).update(
+      "page-1",
+      {},
+    )
+
+    expect(update).not.toHaveBeenCalled()
+    expect(result.id).toBe("page-1")
+  })
+
+  it("refuses a category when the database has no such column", async () => {
+    const update = vi.fn()
+    const client = { pages: { update } } as unknown as Client
+    const repo = new NotionDocumentRepository(
+      { ...CONFIG, properties: { title: "Name", file: "File" } },
+      client,
+    )
+
+    await expect(
+      repo.update("page-1", { category: "SAA" }),
+    ).rejects.toBeInstanceOf(DocumentUpdateNotSupportedError)
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it("turns a 404 from Notion into a not-found domain error", async () => {
+    const update = vi.fn().mockRejectedValue({ status: 404 })
+
+    await expect(
+      repoWith(update).update("gone", { title: "x" }),
+    ).rejects.toBeInstanceOf(DocumentNotFoundError)
+  })
+})
+
+describe("NotionDocumentRepository.remove", () => {
+  beforeEach(() => {
+    resetNotionThrottle()
+  })
+
+  it("moves the row to the Notion trash rather than erasing it", async () => {
+    const update = vi.fn().mockResolvedValue(page())
+    const client = { pages: { update } } as unknown as Client
+
+    await new NotionDocumentRepository(CONFIG, client).remove("page-1")
+
+    expect(update).toHaveBeenCalledWith({
+      page_id: "page-1",
+      in_trash: true,
+    })
+  })
+
+  it("turns a 404 into a not-found domain error", async () => {
+    const update = vi.fn().mockRejectedValue({ status: 404 })
+    const client = { pages: { update } } as unknown as Client
+
+    await expect(
+      new NotionDocumentRepository(CONFIG, client).remove("gone"),
+    ).rejects.toBeInstanceOf(DocumentNotFoundError)
   })
 })

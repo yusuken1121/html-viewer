@@ -80,6 +80,27 @@ export async function apiPost<TResponse, TBody = unknown>(
 }
 
 /**
+ * PATCH a JSON body. `headers` carries the optional upload key; the response
+ * is normalized by the same interceptor as every other verb.
+ */
+export async function apiPatch<TResponse, TBody = unknown>(
+  url: string,
+  body: TBody,
+  headers?: Record<string, string>,
+): Promise<TResponse> {
+  const response = await apiClient.patch<TResponse>(url, body, { headers })
+  return response.data
+}
+
+export async function apiDelete<TResponse>(
+  url: string,
+  headers?: Record<string, string>,
+): Promise<TResponse> {
+  const response = await apiClient.delete<TResponse>(url, { headers })
+  return response.data
+}
+
+/**
  * POST a multipart form (file uploads). Setting the type to
  * `multipart/form-data` without a boundary makes Axios hand the body to the
  * browser, which fills in the boundary itself.

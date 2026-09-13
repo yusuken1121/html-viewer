@@ -70,3 +70,32 @@ export function parseTags(raw: string): string[] {
   }
   return [...seen]
 }
+
+/**
+ * The body of `PATCH /api/docs/[id]`.
+ *
+ * Every field is optional so a caller can send just the one it changed, and
+ * `category: null` is how the form says "clear it" — distinct from omitting
+ * the key, which means "leave it alone". Trimming and deduplication belong to
+ * `UpdateDocumentUseCase`; this only checks shapes and hard limits.
+ */
+export const updateDocumentSchema = z
+  .object({
+    title: z.string().max(200).optional(),
+    category: z.string().max(50).nullable().optional(),
+    tags: z.array(z.string().max(50)).max(20).optional(),
+  })
+  .refine(
+    (value) =>
+      value.title !== undefined ||
+      value.category !== undefined ||
+      value.tags !== undefined,
+    { message: "変更する項目がありません" },
+  )
+
+export type UpdateDocumentBody = z.infer<typeof updateDocumentSchema>
+
+/** What `DELETE /api/docs/[id]` answers with. */
+export const deletedDocumentDtoSchema = z.object({ id: z.string() })
+
+export type DeletedDocumentDto = z.infer<typeof deletedDocumentDtoSchema>

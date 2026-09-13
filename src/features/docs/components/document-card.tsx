@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { documentViewerPath } from "../docs.config"
 import type { DocumentDto } from "../docs.schema"
+import { DocumentActions } from "./document-actions"
 
 const DATE_FORMAT = new Intl.DateTimeFormat("ja-JP", {
   month: "short",
@@ -38,7 +39,7 @@ export function DocumentCard({ document }: { document: DocumentDto }) {
           >
             <Icon className="size-4" aria-hidden="true" />
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 pr-8">
             <h3 className="line-clamp-2 leading-snug font-semibold text-balance">
               {document.title}
             </h3>
@@ -67,21 +68,32 @@ export function DocumentCard({ document }: { document: DocumentDto }) {
     </Card>
   )
 
-  if (!document.hasFile) {
-    return (
-      <div aria-disabled="true" className="h-full">
-        {body}
-      </div>
-    )
-  }
-
+  /*
+   * The menu sits beside the link rather than inside it: a <button> nested in
+   * an <a> is invalid HTML, and every click on it would have to fight the
+   * link's own navigation. Absolute positioning puts it back in the corner of
+   * the card it belongs to.
+   */
   return (
-    <Link
-      href={documentViewerPath(document.id)}
-      className="block h-full rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-      aria-label={`${document.title} を開く`}
-    >
-      {body}
-    </Link>
+    <div className="relative h-full">
+      {document.hasFile ? (
+        <Link
+          href={documentViewerPath(document.id)}
+          className="block h-full rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          aria-label={`${document.title} を開く`}
+        >
+          {body}
+        </Link>
+      ) : (
+        <div aria-disabled="true" className="h-full">
+          {body}
+        </div>
+      )}
+
+      <DocumentActions
+        document={document}
+        className="absolute top-2 right-2 z-10"
+      />
+    </div>
   )
 }

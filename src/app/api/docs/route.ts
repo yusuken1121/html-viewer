@@ -28,6 +28,14 @@ export const dynamic = "force-dynamic"
  *
  * Cached at the CDN for half a minute: a phone reopening the app gets an
  * instant answer, and a file dropped into Notion shows up within 30 seconds.
+ *
+ * `max-age=0, must-revalidate` keeps that cache out of the *browser*. Without
+ * both, the library can be edited or a row deleted and the very next request
+ * is answered from the local HTTP cache with the row still in it — the change
+ * appears to have been lost. `max-age=0` alone is not enough: it only makes
+ * the copy stale, and a stale copy is exactly what a browser will reuse.
+ * React Query already decides how long the client may reuse a list; this
+ * header decides it for the CDN alone.
  */
 export const GET = routeHandler("GET /api/docs", async (req: NextRequest) => {
   await enforceRateLimit(`docs:list:${clientKey(req)}`, DOCS_LIST_RATE_LIMIT)
@@ -39,7 +47,7 @@ export const GET = routeHandler("GET /api/docs", async (req: NextRequest) => {
     { items: documents.map(toDocumentDto) },
     {
       headers: {
-        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=300",
+        "Cache-Control": "public, max-age=0, must-revalidate, s-maxage=30",
       },
     },
   )

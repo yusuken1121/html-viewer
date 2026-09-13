@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { AlertCircle, ArrowLeft, ExternalLink, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -9,6 +10,7 @@ import { PATH } from "@/constants/path"
 import { APP_CONFIG } from "@/constants/app-config"
 import { cn } from "@/lib/utils"
 import { useDocument } from "../api/use-docs"
+import { DocumentActions } from "./document-actions"
 
 /**
  * Full-screen reader.
@@ -20,6 +22,7 @@ import { useDocument } from "../api/use-docs"
  * localStorage) and lets links open in a new tab.
  */
 export function DocumentViewer({ id }: { id: string }) {
+  const router = useRouter()
   const { data, isPending, isError, error } = useDocument(id)
   const [frameLoaded, setFrameLoaded] = useState(false)
 
@@ -56,6 +59,15 @@ export function DocumentViewer({ id }: { id: string }) {
               <ExternalLink className="size-4" />
             </a>
           </Button>
+        )}
+
+        {data && (
+          // Deleting the document being read leaves nothing to show, so the
+          // viewer returns to the library instead of 404-ing on a refetch.
+          <DocumentActions
+            document={data}
+            onDeleted={() => router.replace(PATH.HOME)}
+          />
         )}
       </header>
 

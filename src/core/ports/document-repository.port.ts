@@ -1,5 +1,6 @@
 import type {
   DocumentContent,
+  DocumentUpdate,
   HtmlDocument,
   NewDocument,
 } from "../domain/html-document.entity"
@@ -25,4 +26,18 @@ export interface IDocumentRepository {
    * without metadata columns (the local directory) may drop category and tags.
    */
   create(document: NewDocument): Promise<HtmlDocument>
+  /**
+   * Correct the metadata of an existing document and return it as stored.
+   * Only the fields present in `changes` are written. A store that cannot
+   * record one of them throws `DocumentUpdateNotSupportedError`.
+   */
+  update(id: string, changes: DocumentUpdate): Promise<HtmlDocument>
+  /**
+   * Take the document out of the library.
+   *
+   * Recoverable on purpose in both stores — Notion moves the row to its
+   * trash, the local directory moves the file to a `.trash` folder — because
+   * the caller is a person who just clicked a button on a phone.
+   */
+  remove(id: string): Promise<void>
 }

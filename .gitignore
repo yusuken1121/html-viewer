@@ -51,3 +51,5 @@ next-env.d.ts
 
 # local document store (DOCS_SOURCE=local) — personal files, not source
 /content/
+# where the local store puts documents deleted through the UI
+/e2e/fixtures/.trash/

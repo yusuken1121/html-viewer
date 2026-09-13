@@ -1,17 +1,63 @@
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises"
+import {
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  stat,
+  writeFile,
+} from "node:fs/promises"
 import { basename, extname, join, resolve } from "node:path"
 import type {
   DocumentContent,
+  DocumentUpdate,
   HtmlDocument,
   NewDocument,
 } from "@/core/domain/html-document.entity"
 import {
+  DocumentNotFoundError,
+  DocumentUpdateNotSupportedError,
   extractHtmlTitle,
   normalizeDocumentTitle,
 } from "@/core/domain/html-document.entity"
 import type { IDocumentRepository } from "@/core/ports/document-repository.port"
 
 const HTML_EXTENSIONS = new Set([".html", ".htm"])
+
+/**
+ * Removed files move here instead of being unlinked. `readdir` in `list()`
+ * only keeps `.html`/`.htm` entries, so the folder itself stays invisible to
+ * the app while the file remains recoverable by hand.
+ */
+const TRASH_DIRECTORY = ".trash"
+
+function escapeHtmlText(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
+/**
+ * Put `title` into the document's `<title>`, which is the only place this
+ * store has to keep it.
+ *
+ * Three cases, in order of how tidy the source is: replace an existing
+ * element, add one to an existing `<head>`, or put one at the very top. The
+ * last case is still valid HTML — a browser hoists a stray `<title>` into the
+ * head it synthesises.
+ */
+export function withHtmlTitle(html: string, title: string): string {
+  const element = `<title>${escapeHtmlText(title)}</title>`
+
+  if (/<title[^>]*>[\s\S]*?<\/title>/i.test(html)) {
+    return html.replace(/<title[^>]*>[\s\S]*?<\/title>/i, element)
+  }
+
+  const head = /<head[^>]*>/i.exec(html)
+  if (head) {
+    const at = head.index + head[0].length
+    return `${html.slice(0, at)}${element}${html.slice(at)}`
+  }
+
+  return `${element}${html}`
+}
 
 /**
  * The document id is the file name without its extension. Anything that could
@@ -117,6 +163,49 @@ export class LocalDocumentRepository implements IDocumentRepository {
     if (!document) throw new Error(`Failed to store ${fileName}`)
     // The caller's title wins over whatever <title> the file carries.
     return { ...document, title: input.title }
+  }
+
+  /**
+   * Rewrite the file's `<title>`.
+   *
+   * A folder is not a database: there is nowhere to put a category or a tag,
+   * and `create` already drops both. Silently dropping them on an *edit*
+   * would be worse than refusing — the user is here precisely because a value
+   * is wrong — so anything but a title is rejected outright.
+   */
+  async update(id: string, changes: DocumentUpdate): Promise<HtmlDocument> {
+    const fileName = await this.locate(id)
+    if (!fileName) throw new DocumentNotFoundError(id)
+
+    if (changes.category !== undefined) {
+      throw new DocumentUpdateNotSupportedError("カテゴリ")
+    }
+    if (changes.tags !== undefined) {
+      throw new DocumentUpdateNotSupportedError("タグ")
+    }
+
+    const path = join(this.root, fileName)
+
+    if (changes.title !== undefined) {
+      const html = await readFile(path, "utf8")
+      await writeFile(path, withHtmlTitle(html, changes.title), "utf8")
+    }
+
+    const document = await this.describe(fileName)
+    if (!document) throw new DocumentNotFoundError(id)
+    return document
+  }
+
+  /** Move the file into `.trash/`, prefixed with the time it was removed. */
+  async remove(id: string): Promise<void> {
+    const fileName = await this.locate(id)
+    if (!fileName) throw new DocumentNotFoundError(id)
+
+    const trash = join(this.root, TRASH_DIRECTORY)
+    await mkdir(trash, { recursive: true })
+
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-")
+    await rename(join(this.root, fileName), join(trash, `${stamp}-${fileName}`))
   }
 
   /** Resolve an id back to the file that produced it, if it still exists. */

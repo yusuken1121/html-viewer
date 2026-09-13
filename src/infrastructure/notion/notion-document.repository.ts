@@ -1,10 +1,13 @@
 import type { Client } from "@notionhq/client"
 import type {
   DocumentContent,
+  DocumentUpdate,
   HtmlDocument,
   NewDocument,
 } from "@/core/domain/html-document.entity"
 import {
+  DocumentNotFoundError,
+  DocumentUpdateNotSupportedError,
   MAX_DOCUMENT_BYTES,
   normalizeDocumentTitle,
 } from "@/core/domain/html-document.entity"
@@ -103,6 +106,12 @@ async function withUploadTimeout<T>(
   } finally {
     if (timer) clearTimeout(timer)
   }
+}
+
+/** 404 for a row that is gone, 400 for a string that is not a page id. */
+function isMissingPage(error: unknown): boolean {
+  const status = (error as { status?: number }).status
+  return status === 404 || status === 400
 }
 
 function pick<T>(value: unknown, key: string): T | undefined {
@@ -311,6 +320,81 @@ export class NotionDocumentRepository implements IDocumentRepository {
     }
   }
 
+  /**
+   * Write the changed columns back to the row.
+   *
+   * Only the keys present in `changes` become properties, so editing the
+   * title cannot wipe the tags. Clearing is explicit: `category: null` sends
+   * `select: null` and an empty tag list sends an empty `multi_select`, both
+   * of which Notion reads as "empty this column".
+   */
+  async update(id: string, changes: DocumentUpdate): Promise<HtmlDocument> {
+    const { properties } = this.config
+    const pageProperties: Record<string, unknown> = {}
+
+    if (changes.title !== undefined) {
+      pageProperties[properties.title] = {
+        title: [{ text: { content: changes.title } }],
+      }
+    }
+
+    if (changes.category !== undefined) {
+      if (!properties.category) {
+        throw new DocumentUpdateNotSupportedError("カテゴリ")
+      }
+      pageProperties[properties.category] = {
+        select: changes.category ? { name: changes.category } : null,
+      }
+    }
+
+    if (changes.tags !== undefined) {
+      if (!properties.tags) throw new DocumentUpdateNotSupportedError("タグ")
+      pageProperties[properties.tags] = {
+        multi_select: changes.tags.map((name) => ({ name })),
+      }
+    }
+
+    // Nothing to write: report the row as it stands rather than sending an
+    // empty PATCH, which would still bump `last_edited_time`.
+    if (Object.keys(pageProperties).length === 0) {
+      const page = await this.retrievePage(id)
+      if (!page) throw new DocumentNotFoundError(id)
+      return this.toDocument(page)
+    }
+
+    try {
+      const page = (await withNotionRetry(() =>
+        this.client.pages.update({
+          page_id: id,
+          properties: pageProperties as never,
+        }),
+      )) as unknown as NotionPage
+
+      return this.toDocument(page)
+    } catch (error) {
+      if (isMissingPage(error)) throw new DocumentNotFoundError(id)
+      throw new NotionWriteError("Failed to update the Notion row", error)
+    }
+  }
+
+  /**
+   * Move the row to Notion's trash.
+   *
+   * Not a hard delete: the row (and the HTML attached to it) can be restored
+   * from Notion's own trash for 30 days, which is what makes a delete button
+   * on a phone a safe thing to offer.
+   */
+  async remove(id: string): Promise<void> {
+    try {
+      await withNotionRetry(() =>
+        this.client.pages.update({ page_id: id, in_trash: true }),
+      )
+    } catch (error) {
+      if (isMissingPage(error)) throw new DocumentNotFoundError(id)
+      throw new NotionWriteError("Failed to trash the Notion row", error)
+    }
+  }
+
   private async resolve(): Promise<string> {
     if (this.dataSourceId) return this.dataSourceId
     this.dataSourceId = await resolveDataSourceId(
@@ -330,9 +414,7 @@ export class NotionDocumentRepository implements IDocumentRepository {
       if (page.archived || page.in_trash) return null
       return page
     } catch (error) {
-      const status = (error as { status?: number }).status
-      // 404 for a missing page, 400 for a string that is not a page id at all.
-      if (status === 404 || status === 400) return null
+      if (isMissingPage(error)) return null
       throw new NotionWriteError("Failed to read Notion page", error)
     }
   }
