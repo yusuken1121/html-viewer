@@ -13,7 +13,6 @@
 - [ ] New env vars added to `src/lib/env.ts` **and** `.env.example`
 - [ ] New domain errors extend `DomainError` and set the right `status`
 - [ ] New Route Handlers call `requireUser`/`requireRole` and `enforceRateLimit` where the resource is metered
-- [ ] Migration committed if `schema.ts` changed (`pnpm db:generate`)
 - [ ] Tests cover the behaviour, not just the happy path
 
 ## Screenshots / logs
