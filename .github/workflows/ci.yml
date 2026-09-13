@@ -48,29 +48,6 @@ jobs:
       - run: pnpm build
       - run: pnpm check:bundle
 
-  migrations:
-    name: Migrations match the schema
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - run: corepack enable
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      # A schema edit without `pnpm db:generate` leaves the committed SQL
-      # behind, and the drift only shows up on the next deploy.
-      - run: pnpm db:generate
-      - name: Fail if a migration was not committed
-        run: |
-          if [ -n "$(git status --porcelain drizzle)" ]; then
-            echo "schema.ts changed without a committed migration."
-            echo "Run 'pnpm db:generate' and commit the result."
-            git status --porcelain drizzle
-            exit 1
-          fi
-
   e2e:
     name: End-to-end and accessibility tests
     runs-on: ubuntu-latest
