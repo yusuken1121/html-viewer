@@ -29,6 +29,5 @@ export const DOCS_UPLOAD_RATE_LIMIT = { limit: 10, windowMs: 60_000 }
  * header, remembered in the browser once accepted. See `domain/upload-key.ts`.
  */
 export { WRITE_KEY_HEADER as UPLOAD_KEY_HEADER } from "@/constants/http"
-export const UPLOAD_KEY_STORAGE_KEY = "html-viewer.upload-key"
 
 export const UPLOAD_PATH = "/upload"

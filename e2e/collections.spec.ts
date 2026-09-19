@@ -187,6 +187,40 @@ for (const { key, label, heading } of COLLECTIONS) {
       )
     })
 
+    test("the upload page can send a file here", async ({ page }) => {
+      await page.goto("/upload")
+
+      // The library is the default destination; pick this collection instead.
+      await page
+        .getByRole("group", { name: "保存先を選ぶ" })
+        .getByRole("button", { name: label, exact: true })
+        .click()
+
+      await page.getByLabel("HTML ファイル").setInputFiles({
+        name: `${key}-from-form.html`,
+        mimeType: "text/html",
+        buffer: Buffer.from(HTML("フォームから登録", "届きました")),
+      })
+      await expect(page.getByLabel("タイトル")).toHaveValue("フォームから登録")
+
+      // Dated collections offer a publication date; the library does not.
+      await expect(page.getByLabel("公開日")).toBeVisible()
+      await page.getByLabel("公開日").fill("2026-09-15")
+
+      await page.getByRole("button", { name: "アップロード" }).click()
+
+      await expect(page).toHaveURL(new RegExp(`/${key}/[0-9a-f-]+$`))
+      const frame = page.frameLocator("iframe[title='フォームから登録']")
+      await expect(frame.locator("#body")).toHaveText("届きました")
+
+      // It landed in this collection, dated as asked.
+      await page.goto(`/${key}`)
+      await expect(
+        page.getByRole("heading", { name: "フォームから登録" }),
+      ).toBeVisible()
+      await expect(page.getByText("2026年9月15日")).toBeVisible()
+    })
+
     test("the API refuses anything that is not an HTML file", async ({
       request,
     }) => {

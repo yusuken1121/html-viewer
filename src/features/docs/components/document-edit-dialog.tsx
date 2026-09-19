@@ -18,8 +18,8 @@ import { Label } from "@/components/ui/label"
 import { ApiError } from "@/lib/api/api-client"
 import { useDocuments, useUpdateDocument } from "../api/use-docs"
 import { parseTags, type DocumentDto } from "../docs.schema"
-import { readUploadKey, storeUploadKey } from "../upload-key.storage"
-import { UploadKeyField } from "./upload-key-field"
+import { readUploadKey, storeUploadKey } from "@/lib/write-key.storage"
+import { UploadKeyField } from "@/components/upload-key-field"
 
 type DocumentChanges = {
   title?: string

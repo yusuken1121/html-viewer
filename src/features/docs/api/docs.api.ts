@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPatch, apiPostForm } from "@/lib/api/api-client"
+import { apiDelete, apiGet, apiPatch } from "@/lib/api/api-client"
 import { DOCS_ENDPOINT, UPLOAD_KEY_HEADER } from "../docs.config"
 import type {
   DeletedDocumentDto,
@@ -6,15 +6,6 @@ import type {
   DocumentListDto,
   UpdateDocumentBody,
 } from "../docs.schema"
-
-export type UploadDocumentInput = {
-  file: File
-  title: string
-  category: string
-  tags: string
-  /** Only needed when the server has `DOCS_UPLOAD_SECRET` set. */
-  uploadKey?: string
-}
 
 export type UpdateDocumentInput = {
   id: string
@@ -48,17 +39,4 @@ export const docsApi = {
     ),
   remove: ({ id, uploadKey }: DeleteDocumentInput) =>
     apiDelete<DeletedDocumentDto>(documentPath(id), writeHeaders(uploadKey)),
-  upload: ({ file, title, category, tags, uploadKey }: UploadDocumentInput) => {
-    const form = new FormData()
-    form.append("file", file, file.name)
-    form.append("title", title)
-    form.append("category", category)
-    form.append("tags", tags)
-
-    return apiPostForm<DocumentDto>(
-      DOCS_ENDPOINT,
-      form,
-      writeHeaders(uploadKey),
-    )
-  },
 }

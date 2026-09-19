@@ -17,8 +17,8 @@ import {
 import { ApiError } from "@/lib/api/api-client"
 import { useDeleteDocument } from "../api/use-docs"
 import type { DocumentDto } from "../docs.schema"
-import { readUploadKey, storeUploadKey } from "../upload-key.storage"
-import { UploadKeyField } from "./upload-key-field"
+import { readUploadKey, storeUploadKey } from "@/lib/write-key.storage"
+import { UploadKeyField } from "@/components/upload-key-field"
 
 /**
  * Confirm removing a document.

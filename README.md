@@ -43,9 +43,12 @@ DOCS_SOURCE=local pnpm dev
 
 ## ドキュメントの追加
 
-- **アプリで**: 右上の「追加」→ HTML をドロップ → タイトルは `<title>` から自動入力 → アップロード
+- **アプリで**: 「アップロード」ページで保存先（ライブラリ／ニュース／英語）を選び、
+  HTML をドロップ → タイトルは `<title>` から自動入力 → アップロード。
+  ニュースと英語では公開日も指定できます（空欄なら今の日時）。
 - **Notion で**: 行を追加して File 列に HTML をドラッグ（スマホからも可）
 - **ターミナルで**: `pnpm docs:push lecture.html --category SAA --tags IAM,VPC`
+  （ニュースと英語は `POST /api/news` / `POST /api/english`。下の API 節を参照）
 
 アプリからのアップロードは、環境変数 `DOCS_UPLOAD_SECRET` を設定すると
 そのキーを知る人だけができます。公開 URL に置くなら必ず設定してください。
@@ -84,7 +87,9 @@ pnpm news:init-db <親ページの URL>      # → NOTION_NEWS_DATABASE_ID
 pnpm english:init-db <親ページの URL>   # → NOTION_ENGLISH_DATABASE_ID
 ```
 
-画面は読むだけです。登録は API か、Notion で直接行に HTML をドラッグします。
+登録は 3 通りです。アプリの「アップロード」ページで保存先を選ぶ、API を叩く、
+Notion で直接行に HTML をドラッグする。一覧と個別ページは読むだけで、
+編集と削除は API か Notion 側で行います。
 
 ### API
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FileUp, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 
@@ -15,16 +16,31 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  MAX_DOCUMENT_BYTES,
-  extractHtmlTitle,
-} from "@/core/domain/html-document.entity"
-import { ApiError } from "@/lib/api/api-client"
+import { UploadKeyField } from "@/components/upload-key-field"
+import { WRITE_KEY_HEADER } from "@/constants/http"
+import { MAX_HTML_BYTES, extractHtmlTitle } from "@/core/domain/html-file.rules"
+import { ApiError, apiGet, apiPostForm } from "@/lib/api/api-client"
 import { cn } from "@/lib/utils"
-import { useDocuments, useUploadDocument } from "../api/use-docs"
-import { documentViewerPath } from "../docs.config"
-import { readUploadKey, storeUploadKey } from "../upload-key.storage"
-import { UploadKeyField } from "./upload-key-field"
+import { readUploadKey, storeUploadKey } from "@/lib/write-key.storage"
+
+/**
+ * One place an upload can go.
+ *
+ * Plain data so a Server Component can hand it to this form: the app layer
+ * knows which collections exist, this component only knows how to post a file
+ * to one of them.
+ */
+export type UploadDestination = {
+  /** Also the React Query cache prefix to invalidate: "docs", "news", … */
+  key: string
+  label: string
+  /** API base, e.g. `/api/news`. */
+  endpoint: string
+  /** Where to send the reader afterwards, e.g. `/news`. */
+  viewerBase: string
+  /** Dated collections accept a publication date; the library does not. */
+  dated: boolean
+}
 
 const HTML_FILE = /\.html?$/i
 
@@ -34,8 +50,8 @@ function fileProblem(file: File): string | null {
     return "拡張子が .html または .htm のファイルだけ登録できます"
   }
   if (file.size === 0) return "ファイルが空です"
-  if (file.size > MAX_DOCUMENT_BYTES) {
-    return `ファイルが大きすぎます（上限 ${MAX_DOCUMENT_BYTES / 1024 / 1024} MB）`
+  if (file.size > MAX_HTML_BYTES) {
+    return `ファイルが大きすぎます（上限 ${MAX_HTML_BYTES / 1024 / 1024} MB）`
   }
   return null
 }
@@ -46,27 +62,61 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+type UploadedItem = { id: string; title: string }
+
+/** Categories already in use at this destination, to suggest in the field. */
+function useKnownCategories(endpoint: string): string[] {
+  const { data } = useQuery({
+    queryKey: ["upload", "categories", endpoint],
+    queryFn: () =>
+      apiGet<{ items: Array<{ category: string | null }> }>(endpoint),
+    staleTime: 60_000,
+    // A destination that cannot be listed (its database is not set up yet)
+    // must not stop the reader uploading to one that can.
+    retry: false,
+  })
+
+  return useMemo(() => {
+    const set = new Set<string>()
+    for (const item of data?.items ?? []) {
+      if (item.category) set.add(item.category)
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "ja"))
+  }, [data])
+}
+
 /**
- * Drop an HTML file, confirm the title, upload.
+ * Drop an HTML file, choose where it goes, upload.
  *
- * The title is pre-filled from the file's own <title>; category and tags are
- * optional. If the server answers 401 the form reveals the upload-key field,
- * and a key that works is remembered in this browser.
+ * One form for every collection: the library, the news feed and the English
+ * material all store the same thing — an HTML file with a title, a category
+ * and tags — so having three upload pages would be three places to fix a bug.
+ * The title is pre-filled from the file's own <title>; if the server answers
+ * 401 the form reveals the upload-key field, and a key that works is
+ * remembered in this browser.
  */
-export function DocumentUploadForm() {
+export function UploadForm({
+  destinations,
+}: {
+  destinations: UploadDestination[]
+}) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const inputId = useId()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [destination, setDestination] = useState(destinations[0]!)
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [title, setTitle] = useState("")
   const [titleTouched, setTitleTouched] = useState(false)
   const [category, setCategory] = useState("")
   const [tags, setTags] = useState("")
+  const [publishedOn, setPublishedOn] = useState("")
   const [uploadKey, setUploadKey] = useState("")
   const [needsKey, setNeedsKey] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
   useEffect(() => {
     const stored = readUploadKey()
@@ -76,24 +126,34 @@ export function DocumentUploadForm() {
     }
   }, [])
 
-  const { data: documents } = useDocuments()
-  const knownCategories = useMemo(() => {
-    const set = new Set<string>()
-    for (const document of documents ?? []) {
-      if (document.category) set.add(document.category)
-    }
-    return [...set].sort((a, b) => a.localeCompare(b, "ja"))
-  }, [documents])
+  const knownCategories = useKnownCategories(destination.endpoint)
 
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const { mutate, isPending } = useMutation({
+    mutationFn: (input: { file: File }) => {
+      const form = new FormData()
+      form.append("file", input.file, input.file.name)
+      form.append("title", title)
+      form.append("category", category)
+      form.append("tags", tags)
+      if (destination.dated && publishedOn) {
+        // A date input gives a day, not an instant. Midnight local time is
+        // what the reader meant by "this is the day it was published".
+        form.append("publishedAt", new Date(publishedOn).toISOString())
+      }
 
-  const { mutate, isPending } = useUploadDocument({
+      return apiPostForm<UploadedItem>(
+        destination.endpoint,
+        form,
+        uploadKey ? { [WRITE_KEY_HEADER]: uploadKey } : undefined,
+      )
+    },
     onSuccess: (created) => {
       storeUploadKey(uploadKey)
-      toast.success(`「${created.title}」を追加しました`)
-      router.push(documentViewerPath(created.id))
+      void queryClient.invalidateQueries({ queryKey: [destination.key] })
+      toast.success(`「${created.title}」を${destination.label}に追加しました`)
+      router.push(`${destination.viewerBase}/${encodeURIComponent(created.id)}`)
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       if (error instanceof ApiError && error.status === 401) {
         setNeedsKey(true)
         storeUploadKey("")
@@ -142,13 +202,7 @@ export function DocumentUploadForm() {
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!file || fileError || isPending) return
-    mutate({
-      file,
-      title,
-      category,
-      tags,
-      uploadKey: uploadKey || undefined,
-    })
+    mutate({ file })
   }
 
   const canSubmit = Boolean(file) && !fileError && !isPending
@@ -165,6 +219,37 @@ export function DocumentUploadForm() {
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="flex flex-col gap-6" noValidate>
+            {destinations.length > 1 && (
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium">保存先</span>
+                <div
+                  role="group"
+                  aria-label="保存先を選ぶ"
+                  className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+                >
+                  {destinations.map((candidate) => {
+                    const active = candidate.key === destination.key
+                    return (
+                      <button
+                        key={candidate.key}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setDestination(candidate)}
+                        className={cn(
+                          "shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors",
+                          active
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card text-foreground hover:bg-accent",
+                        )}
+                      >
+                        {candidate.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
               <Label htmlFor={`${inputId}-file`}>HTML ファイル</Label>
               <div
@@ -286,6 +371,22 @@ export function DocumentUploadForm() {
                 />
               </div>
             </div>
+
+            {destination.dated && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={`${inputId}-published`}>公開日</Label>
+                <Input
+                  id={`${inputId}-published`}
+                  type="date"
+                  value={publishedOn}
+                  onChange={(event) => setPublishedOn(event.target.value)}
+                  className="w-fit"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {destination.label}の並び順に使います。空欄なら今の日時です。
+                </p>
+              </div>
+            )}
 
             {needsKey && (
               <UploadKeyField

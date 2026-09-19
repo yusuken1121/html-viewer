@@ -35,6 +35,17 @@ test("uploading an HTML file stores it and opens the viewer", async ({
   await expect(frame.locator("#body")).toHaveText("届きました")
 })
 
+test("the library is the default destination", async ({ page }) => {
+  await page.goto("/upload")
+
+  const group = page.getByRole("group", { name: "保存先を選ぶ" })
+  await expect(
+    group.getByRole("button", { name: "ライブラリ", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true")
+  // The library has no publication date to set.
+  await expect(page.getByLabel("公開日")).toHaveCount(0)
+})
+
 test("a non-HTML file is refused before upload", async ({ page }) => {
   await page.goto("/upload")
 

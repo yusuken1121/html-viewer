@@ -8,7 +8,6 @@ import {
   docsApi,
   type DeleteDocumentInput,
   type UpdateDocumentInput,
-  type UploadDocumentInput,
 } from "./docs.api"
 import type { DeletedDocumentDto, DocumentDto } from "../docs.schema"
 
@@ -45,23 +44,6 @@ export function useDocument(id: string) {
     initialDataUpdatedAt: () =>
       queryClient.getQueryState(docsKeys.list())?.dataUpdatedAt,
     staleTime: 30_000,
-  })
-}
-
-/** Upload a file; the library list is stale afterwards and is dropped. */
-export function useUploadDocument(
-  options?: UseMutationOptions<DocumentDto, Error, UploadDocumentInput>,
-) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: docsApi.upload,
-    ...options,
-    onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.setQueryData(docsKeys.detail(data.id), data)
-      void queryClient.invalidateQueries({ queryKey: docsKeys.list() })
-      options?.onSuccess?.(data, variables, onMutateResult, context)
-    },
   })
 }
 
