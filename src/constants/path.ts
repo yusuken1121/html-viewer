@@ -6,6 +6,8 @@ export const PATH = {
   HOME: "/",
   /** Viewer prefix — the full route is `/docs/[id]`. */
   DOCS: "/docs",
+  NEWS: "/news",
+  ENGLISH: "/english",
   UPLOAD: "/upload",
   SETTINGS: "/settings",
 } as const

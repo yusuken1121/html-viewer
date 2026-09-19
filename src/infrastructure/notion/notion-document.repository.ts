@@ -14,11 +14,19 @@ import {
 import { toNotionPageUrl } from "@/core/domain/notion-page-ref.vo"
 import type { IDocumentRepository } from "@/core/ports/document-repository.port"
 import { NotionClientFactory } from "./notion-client.factory"
+import {
+  downloadHtmlFile,
+  fileEntryUrl,
+  fileUploadProperty,
+  readFileEntries,
+  uploadHtmlFile,
+} from "./notion-html-file"
 import { resolveDataSourceId } from "./notion-data-source"
 import { NotionPropertyReader } from "./notion-property.reader"
 import { throttleNotion, withNotionRetry } from "./notion-throttle"
 import { DocumentUploadTimeoutError } from "@/core/domain/html-document.entity"
-import { NotionWriteError } from "./notion-write.error"
+import { UploadTimeoutError } from "@/core/domain/upload-timeout.error"
+import { NotionWriteError, isMissingPage } from "./notion-write.error"
 
 /**
  * Which columns of the Notion database play which role.
@@ -35,13 +43,6 @@ export type NotionDocumentDatabaseConfig = {
     category?: string
     tags?: string
   }
-}
-
-type NotionFileEntry = {
-  name?: string
-  type?: "file" | "external" | "file_upload"
-  file?: { url?: string; expiry_time?: string }
-  external?: { url?: string }
 }
 
 type NotionPage = {
@@ -66,54 +67,6 @@ const MAX_PAGES = 10
 
 export { MAX_DOCUMENT_BYTES }
 
-/**
- * How long an upload may take before it is abandoned.
- *
- * Sized for a slow connection rather than a fast one: a 2 MB lecture over a
- * poor link legitimately needs tens of seconds, and failing a good upload is
- * worse than waiting. The floor covers the handshake and Notion's own latency.
- */
-const UPLOAD_TIMEOUT_FLOOR_MS = 20_000
-/** Budget per byte — roughly 30 KB/s, i.e. a deliberately pessimistic link. */
-const UPLOAD_MS_PER_BYTE = 1 / 30
-
-function uploadTimeoutMs(bytes: number): number {
-  return Math.min(UPLOAD_TIMEOUT_FLOOR_MS + bytes * UPLOAD_MS_PER_BYTE, 180_000)
-}
-
-/**
- * Rejects with a `DocumentUploadTimeoutError` when the upload outlives its
- * budget. The underlying request is left to unwind on its own — Notion's
- * upload object expires by itself, so an abandoned one costs nothing.
- */
-async function withUploadTimeout<T>(
-  operation: Promise<T>,
-  bytes: number,
-): Promise<T> {
-  const limit = uploadTimeoutMs(bytes)
-  let timer: ReturnType<typeof setTimeout> | undefined
-
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new DocumentUploadTimeoutError(bytes, limit)),
-          limit,
-        )
-      }),
-    ])
-  } finally {
-    if (timer) clearTimeout(timer)
-  }
-}
-
-/** 404 for a row that is gone, 400 for a string that is not a page id. */
-function isMissingPage(error: unknown): boolean {
-  const status = (error as { status?: number }).status
-  return status === 404 || status === 400
-}
-
 function pick<T>(value: unknown, key: string): T | undefined {
   if (typeof value !== "object" || value === null) return undefined
   return (value as Record<string, unknown>)[key] as T | undefined
@@ -125,15 +78,6 @@ function readMultiSelect(property: unknown): string[] {
   return options
     .map((option) => option.name)
     .filter((name): name is string => typeof name === "string")
-}
-
-function readFileEntries(property: unknown): NotionFileEntry[] {
-  const files = pick<NotionFileEntry[]>(property, "files")
-  return Array.isArray(files) ? files : []
-}
-
-function fileUrl(entry: NotionFileEntry): string | null {
-  return entry.file?.url ?? entry.external?.url ?? null
 }
 
 /**
@@ -199,33 +143,10 @@ export class NotionDocumentRepository implements IDocumentRepository {
     const entry = readFileEntries(
       page.properties[this.config.properties.file],
     )[0]
-    const url = entry ? fileUrl(entry) : null
+    const url = entry ? fileEntryUrl(entry) : null
     if (!url) return null
 
-    if (!url.startsWith("https://")) {
-      throw new NotionWriteError(
-        `Refusing to download a non-HTTPS file: ${url}`,
-      )
-    }
-
-    const response = await this.download(url)
-    if (!response.ok) {
-      throw new NotionWriteError(
-        `Downloading the document body failed with HTTP ${response.status}`,
-      )
-    }
-
-    const length = Number(response.headers.get("content-length"))
-    if (Number.isFinite(length) && length > MAX_DOCUMENT_BYTES) {
-      throw new NotionWriteError(
-        `Document body is too large (${length} bytes; limit ${MAX_DOCUMENT_BYTES})`,
-      )
-    }
-
-    const html = await response.text()
-    if (html.length > MAX_DOCUMENT_BYTES) {
-      throw new NotionWriteError("Document body is too large")
-    }
+    const html = await downloadHtmlFile(url, this.download)
 
     return { html, updatedAt: new Date(page.last_edited_time) }
   }
@@ -255,38 +176,14 @@ export class NotionDocumentRepository implements IDocumentRepository {
     const { properties } = this.config
 
     try {
-      const upload = await withNotionRetry(() =>
-        this.client.fileUploads.create({
-          mode: "single_part",
-          filename: input.fileName,
-          content_type: "text/html",
-        }),
-      )
-
-      await withUploadTimeout(
-        throttleNotion(() =>
-          this.client.fileUploads.send({
-            file_upload_id: upload.id,
-            file: {
-              data: new Blob([input.html], { type: "text/html" }),
-              filename: input.fileName,
-            },
-          }),
-        ),
-        input.html.length,
-      )
+      const uploadId = await uploadHtmlFile(this.client, {
+        fileName: input.fileName,
+        html: input.html,
+      })
 
       const pageProperties: Record<string, unknown> = {
         [properties.title]: { title: [{ text: { content: input.title } }] },
-        [properties.file]: {
-          files: [
-            {
-              type: "file_upload",
-              file_upload: { id: upload.id },
-              name: input.fileName,
-            },
-          ],
-        },
+        [properties.file]: fileUploadProperty(uploadId, input.fileName),
       }
 
       // Only touch the optional columns when there is something to write, so
@@ -311,7 +208,11 @@ export class NotionDocumentRepository implements IDocumentRepository {
 
       return this.toDocument(page)
     } catch (error) {
-      if (error instanceof DocumentUploadTimeoutError) throw error
+      // The shared uploader reports a timeout in its own terms; name it after
+      // this collection so the message the reader sees says "document".
+      if (error instanceof UploadTimeoutError) {
+        throw new DocumentUploadTimeoutError(error.bytes, error.elapsedMs)
+      }
       if (error instanceof NotionWriteError) throw error
       throw new NotionWriteError(
         "Failed to upload the document to Notion",
@@ -443,7 +344,7 @@ export class NotionDocumentRepository implements IDocumentRepository {
       tags: properties.tags
         ? readMultiSelect(page.properties[properties.tags])
         : [],
-      hasFile: Boolean(first && fileUrl(first)),
+      hasFile: Boolean(first && fileEntryUrl(first)),
       fileName: first?.name ?? null,
       sourceUrl: page.url ?? toNotionPageUrl(page.id),
       createdAt: new Date(page.created_time),

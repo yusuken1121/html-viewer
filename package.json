@@ -19,7 +19,9 @@
     "prepare": "husky",
     "check:bundle": "tsx scripts/check-bundle-size.ts",
     "docs:push": "tsx scripts/push-doc.ts",
-    "docs:init-db": "tsx scripts/init-notion-db.ts"
+    "docs:init-db": "tsx scripts/init-notion-db.ts",
+    "news:init-db": "tsx scripts/init-collection-db.ts news",
+    "english:init-db": "tsx scripts/init-collection-db.ts english"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -9,7 +9,13 @@ Notion DB（1行 = 1ドキュメント、File 列に HTML）
    ▼
 Next.js  /            一覧（検索・カテゴリ絞り込み）
          /docs/[id]   全画面ビューア（iframe）
-         /api/docs/*  一覧・メタデータ・HTML 本体・編集・削除
+         /news        ニュース一覧（別 DB・別ページ）
+         /english     英語教材一覧（別 DB・別ページ）
+         /news/[id]   全画面ビューア（iframe）
+         /english/[id]
+         /api/docs/*     一覧・メタデータ・HTML 本体・編集・削除
+         /api/news/*     取得・登録・HTML 本体・編集・削除
+         /api/english/*  同上
 ```
 
 認証はありません。個人利用前提で、公開 URL に置く場合は Vercel の
@@ -58,6 +64,90 @@ DOCS_SOURCE=local pnpm dev
 ローカルモード（`DOCS_SOURCE=local`）では、タイトルの変更は HTML の
 `<title>` を書き換えることで行い（カテゴリとタグは変更できません）、
 削除したファイルは `content/.trash/` に移動します。
+
+## ニュースと英語
+
+学習メモ（ライブラリ）とは別に、**新着順で並ぶコレクション**が 2 つあります。
+
+| ページ     | API            | Notion DB                    | 用途               |
+| :--------- | :------------- | :--------------------------- | :----------------- |
+| `/news`    | `/api/news`    | `NOTION_NEWS_DATABASE_ID`    | AWS の更新情報など |
+| `/english` | `/api/english` | `NOTION_ENGLISH_DATABASE_ID` | 英語学習の教材     |
+
+中身の仕組みはライブラリとまったく同じで、**Notion の行に添付した HTML
+ファイル**を iframe で表示します。違うのは並び順（公開日の新しい順）と、
+Notion のデータベースが別なことだけです。準備は
+[docs/notion-setup.md](docs/notion-setup.md) を参照してください。
+
+```bash
+pnpm news:init-db <親ページの URL>      # → NOTION_NEWS_DATABASE_ID
+pnpm english:init-db <親ページの URL>   # → NOTION_ENGLISH_DATABASE_ID
+```
+
+画面は読むだけです。登録は API か、Notion で直接行に HTML をドラッグします。
+
+### API
+
+`{collection}` は `news` か `english` です。2 つは同じ実装なので、
+エンドポイントの形も動きもまったく同じです。
+
+| メソッド | パス                             | 用途                                         |
+| :------- | :------------------------------- | :------------------------------------------- |
+| `GET`    | `/api/{collection}`              | 一覧（`?tag=` で絞り込み、`?limit=` で上限） |
+| `POST`   | `/api/{collection}`              | 登録（HTML ファイル）                        |
+| `GET`    | `/api/{collection}/{id}`         | 1 件のメタデータ                             |
+| `GET`    | `/api/{collection}/{id}/content` | HTML 本体（iframe が読む先）                 |
+| `PATCH`  | `/api/{collection}/{id}`         | タイトル・カテゴリ・タグ・公開日を編集       |
+| `DELETE` | `/api/{collection}/{id}`         | 削除（Notion のゴミ箱へ移動）                |
+
+登録は 2 通りあります。スクリプトからは JSON が簡単です。`title` を省くと
+HTML の `<title>` から、`publishedAt` を省くと現在時刻が入ります。
+
+```bash
+curl -X POST http://localhost:3000/api/english \
+  -H "Content-Type: application/json" \
+  -H "x-upload-key: $DOCS_UPLOAD_SECRET" \
+  -d '{
+    "fileName": "phrasal-verbs-01.html",
+    "html": "<!doctype html><html><head><title>句動詞 20 選</title></head><body>…</body></html>",
+    "category": "語彙",
+    "tags": ["句動詞", "TOEIC"],
+    "publishedAt": "2026-09-18T09:00:00Z"
+  }'
+```
+
+フォームから送るなら multipart も受け付けます。`file` パートが HTML 本体です。
+
+```bash
+curl -X POST http://localhost:3000/api/news \
+  -H "x-upload-key: $DOCS_UPLOAD_SECRET" \
+  -F "file=@weekly-aws-0914.html" \
+  -F "category=AWS" -F "tags=S3,ストレージ"
+```
+
+書き込み系（`POST` / `PATCH` / `DELETE`）は、`DOCS_UPLOAD_SECRET` を設定していると
+`x-upload-key` ヘッダーが必須になります。アップロードと同じキーなので、
+1 つ設定すれば全部に使えます。コレクションごとに鍵を分けたい場合は
+`NEWS_API_SECRET` / `ENGLISH_API_SECRET` を設定してください。未設定なら鍵なしで
+書き込めます（公開 URL では必ず設定を）。
+
+ファイルの制限はライブラリと同じで、拡張子は `.html` / `.htm`、上限 10 MB です。
+`PATCH` で差し替えられるのはメタデータだけで、HTML 本体は入れ替えません
+（別の内容なら別の行として登録してください）。
+
+### 3 つ目を足すとき
+
+2 つのコレクションは設定だけが違う同じコードです。共通部分は
+`src/lib/collections/`（Zod スキーマ・ユースケース・Route Handler）と
+`src/core/domain/collection-item.entity.ts` にあり、features 側には
+設定と薄い画面しかありません。追加は次の 5 か所です。
+
+1. `src/features/<name>/` に `*.config.ts` と `*.api.config.ts`、画面 2 つ
+2. `src/app/api/<name>/` に 3 行の Route Handler を 3 つ
+3. `src/app/(app)/<name>/page.tsx` と `src/app/(viewer)/<name>/[id]/page.tsx`
+4. `src/constants/path.ts` と `src/constants/sidebar.tsx`
+5. `next.config.ts` の `FRAMED_COLLECTIONS`、`src/middleware.ts` の
+   `FRAMED_CONTENT_PATH`、`scripts/init-collection-db.ts` の `COLLECTIONS`
 
 ## デプロイ（Vercel）
 

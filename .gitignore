@@ -53,3 +53,8 @@ next-env.d.ts
 /content/
 # where the local store puts documents deleted through the UI
 /e2e/fixtures/.trash/
+# the local collections, written by `pnpm dev` and the e2e suite
+/e2e/fixtures/news.json
+/e2e/fixtures/news.trash.json
+/e2e/fixtures/english.json
+/e2e/fixtures/english.trash.json

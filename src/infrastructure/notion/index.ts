@@ -46,3 +46,9 @@ export {
   NotionDataSourceError,
   resolveDataSourceId,
 } from "./notion-data-source"
+
+export {
+  NotionCollectionRepository,
+  createNotionCollectionRepository,
+} from "./notion-collection.repository"
+export type { NotionCollectionConfig } from "./notion-collection.repository"

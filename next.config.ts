@@ -29,6 +29,12 @@ const securityHeaders = [
     : []),
 ]
 
+/**
+ * Collections whose `/content` route is framed. Adding one here is the only
+ * header change a new collection needs.
+ */
+const FRAMED_COLLECTIONS = ["docs", "news", "english"]
+
 const nextConfig: NextConfig = {
   // Emits a self-contained server bundle for the Docker image.
   output: "standalone",
@@ -45,20 +51,26 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       /**
-       * Everything except `/api/docs/<id>/content`, which is rendered inside
-       * an <iframe> and sets its own framing headers in its Route Handler.
+       * Everything except the content routes, which are rendered inside an
+       * <iframe> and set their own framing headers in their Route Handler.
        * A global DENY here would win and leave the viewer blank.
+       *
+       * One lookahead per collection rather than one alternation: `source` is
+       * parsed by path-to-regexp, which reads `(docs|news)` as a capture
+       * group of its own and refuses the whole rule.
        */
       {
-        source: "/((?!api/docs/[^/]+/content$).*)",
+        source: `/((?!${FRAMED_COLLECTIONS.map(
+          (name) => `api/${name}/[^/]+/content$`,
+        ).join(")(?!")}).*)`,
         headers: securityHeaders,
       },
-      {
-        source: "/api/docs/:id/content",
+      ...FRAMED_COLLECTIONS.map((name) => ({
+        source: `/api/${name}/:id/content`,
         headers: securityHeaders.filter(
           (header) => header.key !== "X-Frame-Options",
         ),
-      },
+      })),
     ]
   },
 }

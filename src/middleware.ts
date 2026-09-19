@@ -43,12 +43,13 @@ function buildCsp(nonce: string, isDev: boolean, isHttps: boolean): string {
 }
 
 /**
- * `/api/docs/<id>/content` serves a user-supplied HTML file to be rendered in
- * an <iframe>. The app's own CSP (nonce-only scripts, `frame-ancestors 'none'`)
- * would break it in both directions, so that route sets its own headers — see
- * the comment in its route.ts — and this middleware only tags the request id.
+ * The `<collection>/<id>/content` routes serve a user-supplied
+ * HTML file to be rendered in an <iframe>. The app's own CSP (nonce-only
+ * scripts, `frame-ancestors 'none'`) would break them in both directions, so
+ * those routes set their own headers — see the comments in their route.ts —
+ * and this middleware only tags the request id.
  */
-const FRAMED_CONTENT_PATH = /^\/api\/docs\/[^/]+\/content$/
+const FRAMED_CONTENT_PATH = /^\/api\/(docs|news|english)\/[^/]+\/content$/
 
 export default function middleware(req: NextRequest) {
   // Trust an upstream id when a proxy already assigned one, so a trace

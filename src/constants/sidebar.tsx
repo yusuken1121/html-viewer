@@ -1,9 +1,11 @@
-import { Library, Settings, Upload } from "lucide-react"
+import { Languages, Library, Newspaper, Settings, Upload } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { PATH } from "@/constants/path"
 
 export const MENU_KEYS = {
   LIBRARY: "library",
+  NEWS: "news",
+  ENGLISH: "english",
   UPLOAD: "upload",
   SETTINGS: "settings",
 } as const
@@ -29,6 +31,18 @@ export const SIDEBAR_CONFIG: Record<MenuKey, SidebarItemConfig> = {
     icon: Library,
     activeColor: "text-blue-600 dark:text-blue-400",
   },
+  [MENU_KEYS.NEWS]: {
+    label: "ニュース",
+    path: PATH.NEWS,
+    icon: Newspaper,
+    activeColor: "text-amber-600 dark:text-amber-400",
+  },
+  [MENU_KEYS.ENGLISH]: {
+    label: "英語",
+    path: PATH.ENGLISH,
+    icon: Languages,
+    activeColor: "text-sky-600 dark:text-sky-400",
+  },
   [MENU_KEYS.UPLOAD]: {
     label: "アップロード",
     path: PATH.UPLOAD,
@@ -42,7 +56,12 @@ export const SIDEBAR_CONFIG: Record<MenuKey, SidebarItemConfig> = {
   },
 }
 
-export const mainSidebar: MenuKey[] = [MENU_KEYS.LIBRARY, MENU_KEYS.UPLOAD]
+export const mainSidebar: MenuKey[] = [
+  MENU_KEYS.LIBRARY,
+  MENU_KEYS.NEWS,
+  MENU_KEYS.ENGLISH,
+  MENU_KEYS.UPLOAD,
+]
 export const manageSidebar: MenuKey[] = [MENU_KEYS.SETTINGS]
 export const adminSidebar: MenuKey[] = []
 export const footerSidebar: MenuKey[] = []
