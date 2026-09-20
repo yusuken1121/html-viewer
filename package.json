@@ -21,7 +21,8 @@
     "docs:push": "tsx scripts/push-doc.ts",
     "docs:init-db": "tsx scripts/init-notion-db.ts",
     "news:init-db": "tsx scripts/init-collection-db.ts news",
-    "english:init-db": "tsx scripts/init-collection-db.ts english"
+    "english:init-db": "tsx scripts/init-collection-db.ts english",
+    "history:init-db": "tsx scripts/init-collection-db.ts history"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

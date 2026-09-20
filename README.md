@@ -11,11 +11,14 @@ Next.js  /            一覧（検索・カテゴリ絞り込み）
          /docs/[id]   全画面ビューア（iframe）
          /news        ニュース一覧（別 DB・別ページ）
          /english     英語教材一覧（別 DB・別ページ）
+         /history     世界史教材一覧（別 DB・別ページ）
          /news/[id]   全画面ビューア（iframe）
          /english/[id]
+         /history/[id]
          /api/docs/*     一覧・メタデータ・HTML 本体・編集・削除
          /api/news/*     取得・登録・HTML 本体・編集・削除
          /api/english/*  同上
+         /api/history/*  同上
 ```
 
 認証はありません。個人利用前提で、公開 URL に置く場合は Vercel の
@@ -43,12 +46,12 @@ DOCS_SOURCE=local pnpm dev
 
 ## ドキュメントの追加
 
-- **アプリで**: 「アップロード」ページで保存先（ライブラリ／ニュース／英語）を選び、
+- **アプリで**: 「アップロード」ページで保存先（ライブラリ／ニュース／英語／世界史）を選び、
   HTML をドロップ → タイトルは `<title>` から自動入力 → アップロード。
-  ニュースと英語では公開日も指定できます（空欄なら今の日時）。
 - **Notion で**: 行を追加して File 列に HTML をドラッグ（スマホからも可）
 - **ターミナルで**: `pnpm docs:push lecture.html --category SAA --tags IAM,VPC`
-  （ニュースと英語は `POST /api/news` / `POST /api/english`。下の API 節を参照）
+  （ニュース・英語・世界史は `POST /api/news` / `POST /api/english` /
+  `POST /api/history`。下の API 節を参照）
 
 アプリからのアップロードは、環境変数 `DOCS_UPLOAD_SECRET` を設定すると
 そのキーを知る人だけができます。公開 URL に置くなら必ず設定してください。
@@ -68,14 +71,15 @@ DOCS_SOURCE=local pnpm dev
 `<title>` を書き換えることで行い（カテゴリとタグは変更できません）、
 削除したファイルは `content/.trash/` に移動します。
 
-## ニュースと英語
+## ニュース・英語・世界史
 
-学習メモ（ライブラリ）とは別に、**新着順で並ぶコレクション**が 2 つあります。
+学習メモ（ライブラリ）とは別に、**新着順で並ぶコレクション**が 3 つあります。
 
 | ページ     | API            | Notion DB                    | 用途               |
 | :--------- | :------------- | :--------------------------- | :----------------- |
 | `/news`    | `/api/news`    | `NOTION_NEWS_DATABASE_ID`    | AWS の更新情報など |
 | `/english` | `/api/english` | `NOTION_ENGLISH_DATABASE_ID` | 英語学習の教材     |
+| `/history` | `/api/history` | `NOTION_HISTORY_DATABASE_ID` | 世界史の教材       |
 
 中身の仕組みはライブラリとまったく同じで、**Notion の行に添付した HTML
 ファイル**を iframe で表示します。違うのは並び順（公開日の新しい順）と、
@@ -87,6 +91,7 @@ AWS 用データベースを複製しただけでは不十分で、コピー先�
 ```bash
 pnpm news:init-db <親ページの URL>      # → NOTION_NEWS_DATABASE_ID
 pnpm english:init-db <親ページの URL>   # → NOTION_ENGLISH_DATABASE_ID
+pnpm history:init-db <親ページの URL>   # → NOTION_HISTORY_DATABASE_ID
 ```
 
 登録は 3 通りです。アプリの「アップロード」ページで保存先を選ぶ、API を叩く、
@@ -95,7 +100,7 @@ Notion で直接行に HTML をドラッグする。一覧と個別ページは�
 
 ### API
 
-`{collection}` は `news` か `english` です。2 つは同じ実装なので、
+`{collection}` は `news`、`english`、`history` です。実装は同じなので、
 エンドポイントの形も動きもまったく同じです。
 
 | メソッド | パス                             | 用途                                         |
@@ -135,16 +140,16 @@ curl -X POST http://localhost:3000/api/news \
 書き込み系（`POST` / `PATCH` / `DELETE`）は、`DOCS_UPLOAD_SECRET` を設定していると
 `x-upload-key` ヘッダーが必須になります。アップロードと同じキーなので、
 1 つ設定すれば全部に使えます。コレクションごとに鍵を分けたい場合は
-`NEWS_API_SECRET` / `ENGLISH_API_SECRET` を設定してください。未設定なら鍵なしで
+`NEWS_API_SECRET` / `ENGLISH_API_SECRET` / `HISTORY_API_SECRET` を設定してください。未設定なら鍵なしで
 書き込めます（公開 URL では必ず設定を）。
 
 ファイルの制限はライブラリと同じで、拡張子は `.html` / `.htm`、上限 10 MB です。
 `PATCH` で差し替えられるのはメタデータだけで、HTML 本体は入れ替えません
 （別の内容なら別の行として登録してください）。
 
-### 3 つ目を足すとき
+### もう 1 つ足すとき
 
-2 つのコレクションは設定だけが違う同じコードです。共通部分は
+コレクションは設定だけが違う同じコードです。共通部分は
 `src/lib/collections/`（Zod スキーマ・ユースケース・Route Handler）と
 `src/core/domain/collection-item.entity.ts` にあり、features 側には
 設定と薄い画面しかありません。追加は次の 5 か所です。
@@ -159,7 +164,8 @@ curl -X POST http://localhost:3000/api/news \
 ## デプロイ（Vercel）
 
 リポジトリを Vercel にインポートし、環境変数に `NOTION_TOKEN`、
-`NOTION_DOCS_DATABASE_ID`、`DOCS_UPLOAD_SECRET`（必要なら `NEXT_PUBLIC_APP_URL`）
+`NOTION_DOCS_DATABASE_ID`、使うコレクションの `NOTION_*_DATABASE_ID`、
+`DOCS_UPLOAD_SECRET`（必要なら `NEXT_PUBLIC_APP_URL`）
 を設定するだけです。
 Dockerfile も同梱しているので、任意の Node ホストでも動きます。
 

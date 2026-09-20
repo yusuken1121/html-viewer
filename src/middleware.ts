@@ -49,7 +49,8 @@ function buildCsp(nonce: string, isDev: boolean, isHttps: boolean): string {
  * those routes set their own headers — see the comments in their route.ts —
  * and this middleware only tags the request id.
  */
-const FRAMED_CONTENT_PATH = /^\/api\/(docs|news|english)\/[^/]+\/content$/
+const FRAMED_CONTENT_PATH =
+  /^\/api\/(docs|news|english|history)\/[^/]+\/content$/
 
 export default function middleware(req: NextRequest) {
   // Trust an upstream id when a proxy already assigned one, so a trace

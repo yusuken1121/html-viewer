@@ -58,3 +58,5 @@ next-env.d.ts
 /e2e/fixtures/news.trash.json
 /e2e/fixtures/english.json
 /e2e/fixtures/english.trash.json
+/e2e/fixtures/history.json
+/e2e/fixtures/history.trash.json

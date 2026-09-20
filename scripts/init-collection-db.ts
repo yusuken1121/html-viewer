@@ -3,6 +3,7 @@
  *
  *   pnpm news:init-db <parent page id or URL> [--name "..."]
  *   pnpm english:init-db <parent page id or URL> [--name "..."]
+ *   pnpm history:init-db <parent page id or URL> [--name "..."]
  *
  * The integration must already be connected to the parent page (page → …
  * → 接続 → your integration). Prints the new database id to paste into
@@ -23,6 +24,11 @@ const COLLECTIONS = {
   english: {
     defaultName: "HTML Viewer English",
     envVar: "NOTION_ENGLISH_DATABASE_ID",
+  },
+  history: {
+    defaultName: "HTML Viewer World History",
+    envVar: "NOTION_HISTORY_DATABASE_ID",
+    categories: ["古代", "中世", "近世", "近代", "現代"],
   },
 } as const
 
@@ -66,7 +72,14 @@ async function main() {
       properties: {
         Name: { title: {} },
         File: { files: {} },
-        Category: { select: {} },
+        Category: {
+          select: {
+            options: ("categories" in collection
+              ? collection.categories
+              : []
+            ).map((name) => ({ name })),
+          },
+        },
         Tags: { multi_select: {} },
       },
     },

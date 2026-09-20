@@ -13,12 +13,13 @@ const HTML = (title: string, body: string) =>
   `<!doctype html><html><head><title>${title}</title></head><body><p id="body">${body}</p></body></html>`
 
 /**
- * The two collections are the same code with different configuration, so the
- * suite runs the same checks against both. A third collection is a line here.
+ * The collections are the same code with different configuration, so the
+ * suite runs the same checks against each. A new collection is a line here.
  */
 const COLLECTIONS = [
   { key: "news", label: "ニュース", heading: "ニュース" },
   { key: "english", label: "英語", heading: "英語" },
+  { key: "history", label: "世界史", heading: "世界史" },
 ] as const
 
 /**
@@ -242,7 +243,7 @@ for (const { key, label, heading } of COLLECTIONS) {
   })
 }
 
-test("the two collections are separate stores", async ({ page, request }) => {
+test("the collections are separate stores", async ({ page, request }) => {
   await register(request, "news", {
     fileName: "only-news.html",
     html: HTML("ニュース側だけの記事", "ok"),
@@ -250,6 +251,10 @@ test("the two collections are separate stores", async ({ page, request }) => {
   await register(request, "english", {
     fileName: "only-english.html",
     html: HTML("英語側だけの教材", "ok"),
+  })
+  await register(request, "history", {
+    fileName: "only-history.html",
+    html: HTML("世界史側だけの教材", "ok"),
   })
 
   await page.goto("/news")
@@ -259,6 +264,9 @@ test("the two collections are separate stores", async ({ page, request }) => {
   await expect(
     page.getByRole("heading", { name: "英語側だけの教材" }),
   ).toHaveCount(0)
+  await expect(
+    page.getByRole("heading", { name: "世界史側だけの教材" }),
+  ).toHaveCount(0)
 
   await page.goto("/english")
   await expect(
@@ -266,5 +274,19 @@ test("the two collections are separate stores", async ({ page, request }) => {
   ).toBeVisible()
   await expect(
     page.getByRole("heading", { name: "ニュース側だけの記事" }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole("heading", { name: "世界史側だけの教材" }),
+  ).toHaveCount(0)
+
+  await page.goto("/history")
+  await expect(
+    page.getByRole("heading", { name: "世界史側だけの教材" }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole("heading", { name: "ニュース側だけの記事" }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole("heading", { name: "英語側だけの教材" }),
   ).toHaveCount(0)
 })

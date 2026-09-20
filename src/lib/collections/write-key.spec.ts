@@ -38,6 +38,7 @@ describe("CollectionNotConfiguredError", () => {
   it.each([
     ["英語", "NOTION_ENGLISH_DATABASE_ID", "pnpm english:init-db"],
     ["ニュース", "NOTION_NEWS_DATABASE_ID", "pnpm news:init-db"],
+    ["世界史", "NOTION_HISTORY_DATABASE_ID", "pnpm history:init-db"],
   ] as const)(
     "answers 503 and names %s, the fix and the variable",
     (label, envVar, script) => {

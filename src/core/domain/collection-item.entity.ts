@@ -8,11 +8,11 @@ import {
 /**
  * One item in a dated collection of HTML pages.
  *
- * The app has three of these now — the document library, the news feed and
- * the English material — and they differ only in which Notion database they
- * read and how they are presented. The shape is the document's, plus the date
- * the collection is ordered by, so a second collection costs a config file
- * rather than a second copy of the store.
+ * The app has a few of these now — the document library, the news feed,
+ * English material and world history — and they differ only in which Notion
+ * database they read and how they are presented. The shape is the document's,
+ * plus the date the collection is ordered by, so another collection costs a
+ * config file rather than a second copy of the store.
  */
 export interface CollectionItem {
   /** Storage-specific primary key — a Notion page id, or a generated uuid. */

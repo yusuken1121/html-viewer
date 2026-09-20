@@ -49,6 +49,8 @@ test("the library is the default destination", async ({ page }) => {
   await expect(page.getByLabel("公開日")).toHaveCount(0)
   await group.getByRole("button", { name: "英語", exact: true }).click()
   await expect(page.getByLabel("公開日")).toHaveCount(0)
+  await group.getByRole("button", { name: "世界史", exact: true }).click()
+  await expect(page.getByLabel("公開日")).toHaveCount(0)
 })
 
 test("a non-HTML file is refused before upload", async ({ page }) => {
