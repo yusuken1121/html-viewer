@@ -1,13 +1,17 @@
 import type { Client } from "@notionhq/client"
+import { DomainError } from "@/core/domain/domain.error"
 import { withNotionRetry } from "./notion-throttle"
+import { toUserFacingNotionMessage } from "./notion-write.error"
 
 type DatabaseResponse = {
   data_sources?: Array<{ id: string; name?: string }>
 }
 
-export class NotionDataSourceError extends Error {
-  constructor(message: string) {
-    super(message)
+export class NotionDataSourceError extends DomainError {
+  override readonly status = 502
+
+  constructor(readonly detail: string) {
+    super(toUserFacingNotionMessage(undefined, detail))
     this.name = "NotionDataSourceError"
   }
 }

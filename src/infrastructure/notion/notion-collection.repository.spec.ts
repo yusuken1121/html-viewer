@@ -19,6 +19,29 @@ const CONFIG: NotionCollectionConfig = {
   },
 }
 
+function schema(names: string[]) {
+  return {
+    properties: Object.fromEntries(names.map((name) => [name, {}])),
+  }
+}
+
+function writeClient(
+  pagesCreate: ReturnType<typeof vi.fn>,
+  propertyNames = ["Name", "File", "Category", "Tags", "Published"],
+  uploads: { id?: string } = {},
+) {
+  return {
+    fileUploads: {
+      create: vi.fn().mockResolvedValue({ id: uploads.id ?? "u" }),
+      send: vi.fn().mockResolvedValue({ status: "uploaded" }),
+    },
+    pages: { create: pagesCreate },
+    dataSources: {
+      retrieve: vi.fn().mockResolvedValue(schema(propertyNames)),
+    },
+  } as unknown as Client
+}
+
 function page(overrides: Record<string, unknown> = {}) {
   return {
     id: "news-1",
@@ -118,6 +141,22 @@ describe("NotionCollectionRepository.list", () => {
     expect((await repo.list({ limit: 1 })).map((i) => i.id)).toEqual(["new"])
   })
 
+  it("surfaces a missing database as a user-facing 502", async () => {
+    const query = vi.fn().mockRejectedValue({
+      status: 404,
+      code: "object_not_found",
+    })
+    const client = { dataSources: { query } } as unknown as Client
+
+    await expect(
+      new NotionCollectionRepository(CONFIG, client).list(),
+    ).rejects.toMatchObject({
+      name: "NotionWriteError",
+      status: 502,
+      message: expect.stringContaining("接続"),
+    })
+  })
+
   it("falls back to the creation time when the date column is empty", async () => {
     const query = vi.fn().mockResolvedValue({
       results: [
@@ -185,13 +224,8 @@ describe("NotionCollectionRepository.create", () => {
   beforeEach(() => resetNotionThrottle())
 
   it("uploads the file, then creates the row pointing at it", async () => {
-    const uploadCreate = vi.fn().mockResolvedValue({ id: "upload-1" })
-    const uploadSend = vi.fn().mockResolvedValue({ status: "uploaded" })
     const pagesCreate = vi.fn().mockResolvedValue(page({ id: "new-page" }))
-    const client = {
-      fileUploads: { create: uploadCreate, send: uploadSend },
-      pages: { create: pagesCreate },
-    } as unknown as Client
+    const client = writeClient(pagesCreate, undefined, { id: "upload-1" })
 
     const created = await new NotionCollectionRepository(CONFIG, client).create(
       {
@@ -204,7 +238,7 @@ describe("NotionCollectionRepository.create", () => {
       },
     )
 
-    expect(uploadCreate).toHaveBeenCalledWith({
+    expect(client.fileUploads.create).toHaveBeenCalledWith({
       mode: "single_part",
       filename: "weekly-aws.html",
       content_type: "text/html",
@@ -229,13 +263,7 @@ describe("NotionCollectionRepository.create", () => {
 
   it("leaves optional columns out when they are empty", async () => {
     const pagesCreate = vi.fn().mockResolvedValue(page())
-    const client = {
-      fileUploads: {
-        create: vi.fn().mockResolvedValue({ id: "u" }),
-        send: vi.fn().mockResolvedValue({}),
-      },
-      pages: { create: pagesCreate },
-    } as unknown as Client
+    const client = writeClient(pagesCreate)
 
     await new NotionCollectionRepository(CONFIG, client).create({
       title: "t",
@@ -255,13 +283,12 @@ describe("NotionCollectionRepository.create", () => {
 
   it("matches the AWS/docs schema and does not send Published", async () => {
     const pagesCreate = vi.fn().mockResolvedValue(page())
-    const client = {
-      fileUploads: {
-        create: vi.fn().mockResolvedValue({ id: "u" }),
-        send: vi.fn().mockResolvedValue({}),
-      },
-      pages: { create: pagesCreate },
-    } as unknown as Client
+    const client = writeClient(pagesCreate, [
+      "Name",
+      "File",
+      "Category",
+      "Tags",
+    ])
 
     await new NotionCollectionRepository(
       {
@@ -275,6 +302,32 @@ describe("NotionCollectionRepository.create", () => {
       },
       client,
     ).create({
+      title: "句動詞 20 選",
+      fileName: "phrasal-verbs.html",
+      html: "<html></html>",
+      category: "語彙",
+      tags: ["TOEIC"],
+      publishedAt: new Date("2026-09-20T00:00:00.000Z"),
+    })
+
+    expect(Object.keys(pagesCreate.mock.calls[0]![0].properties)).toEqual([
+      "Name",
+      "File",
+      "Category",
+      "Tags",
+    ])
+  })
+
+  it("skips Published when the live database has no such column", async () => {
+    const pagesCreate = vi.fn().mockResolvedValue(page())
+    const client = writeClient(pagesCreate, [
+      "Name",
+      "File",
+      "Category",
+      "Tags",
+    ])
+
+    await new NotionCollectionRepository(CONFIG, client).create({
       title: "句動詞 20 選",
       fileName: "phrasal-verbs.html",
       html: "<html></html>",
