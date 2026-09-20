@@ -3,6 +3,7 @@
 import { Newspaper } from "lucide-react"
 
 import { CollectionFeed } from "@/components/collection-feed"
+import { isCollectionSetupError } from "@/lib/collections/collection-configuration.error"
 import { useNews } from "../api/use-news"
 import { NEWS_LABEL, newsViewerPath } from "../news.config"
 
@@ -32,10 +33,11 @@ export function NewsFeed() {
         </>
       }
       setupHint={
-        error?.message.includes("NOTION_NEWS_DATABASE_ID") ? (
+        isCollectionSetupError(error?.message) ? (
           <p>
-            手順は docs/notion-setup.md の「ニュース用データベース」にあります。
-            ほかのデータベースとは分けて作ってください。
+            手順は docs/notion-setup.md
+            の「ニュース／英語用データベース」にあります。 AWS
+            用を複製した場合は、コピー先でもインテグレーションを「接続」し直してください。
           </p>
         ) : undefined
       }

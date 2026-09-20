@@ -3,6 +3,7 @@
 import { Languages } from "lucide-react"
 
 import { CollectionFeed } from "@/components/collection-feed"
+import { isCollectionSetupError } from "@/lib/collections/collection-configuration.error"
 import { useEnglish } from "../api/use-english"
 import { ENGLISH_LABEL, englishViewerPath } from "../english.config"
 
@@ -32,10 +33,11 @@ export function EnglishFeed() {
         </>
       }
       setupHint={
-        error?.message.includes("NOTION_ENGLISH_DATABASE_ID") ? (
+        isCollectionSetupError(error?.message) ? (
           <p>
-            手順は docs/notion-setup.md の「英語用データベース」にあります。
-            ほかのデータベースとは分けて作ってください。
+            手順は docs/notion-setup.md
+            の「ニュース／英語用データベース」にあります。 AWS
+            用を複製した場合は、コピー先でもインテグレーションを「接続」し直してください。
           </p>
         ) : undefined
       }
