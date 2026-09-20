@@ -45,6 +45,8 @@ test("the library is the default destination", async ({ page }) => {
   // None of the destinations set a publication date — they share the
   // AWS/docs schema (Name, File, Category, Tags).
   await expect(page.getByLabel("公開日")).toHaveCount(0)
+  await group.getByRole("button", { name: "ニュース", exact: true }).click()
+  await expect(page.getByLabel("公開日")).toHaveCount(0)
   await group.getByRole("button", { name: "英語", exact: true }).click()
   await expect(page.getByLabel("公開日")).toHaveCount(0)
 })
