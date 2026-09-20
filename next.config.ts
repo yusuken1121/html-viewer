@@ -33,7 +33,7 @@ const securityHeaders = [
  * Collections whose `/content` route is framed. Adding one here is the only
  * header change a new collection needs.
  */
-const FRAMED_COLLECTIONS = ["docs", "news", "english"]
+const FRAMED_COLLECTIONS = ["docs", "news", "english", "history"]
 
 const nextConfig: NextConfig = {
   // Emits a self-contained server bundle for the Docker image.

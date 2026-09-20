@@ -1,23 +1,23 @@
 "use client"
 
-import { Newspaper } from "lucide-react"
+import { Globe } from "lucide-react"
 
 import { CollectionFeed } from "@/components/collection-feed"
 import { isCollectionSetupError } from "@/lib/collections/collection-configuration.error"
-import { useNews } from "../api/use-news"
-import { NEWS_LABEL, newsViewerPath } from "../news.config"
+import { useHistory } from "../api/use-history"
+import { HISTORY_LABEL, historyViewerPath } from "../history.config"
 
-/** The news page. Everything but the wording comes from `CollectionFeed`. */
-export function NewsFeed() {
-  const { data, isPending, isError, error, refetch, isFetching } = useNews()
+/** The world-history page. Everything but the wording comes from `CollectionFeed`. */
+export function HistoryFeed() {
+  const { data, isPending, isError, error, refetch, isFetching } = useHistory()
 
   return (
     <CollectionFeed
-      heading={NEWS_LABEL}
+      heading={HISTORY_LABEL}
       countLabel={(count) => `${count} 件`}
       loadingLabel="読み込んでいます"
-      icon={Newspaper}
-      itemHref={newsViewerPath}
+      icon={Globe}
+      itemHref={historyViewerPath}
       items={data}
       isPending={isPending}
       isError={isError}
@@ -27,7 +27,7 @@ export function NewsFeed() {
       emptyTitle="まだ登録がありません"
       emptyDescription={
         <>
-          <code>POST /api/news</code> に HTML
+          <code>POST /api/history</code> に HTML
           ファイルを送ると、ここに新着順で並びます。Notion
           のデータベースに行を足して File 列にドラッグしても構いません。
         </>

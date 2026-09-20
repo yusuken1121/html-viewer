@@ -9,6 +9,7 @@
         "DOCS_LOCAL_DIR=content",
         "NEWS_LOCAL_FILE=content/news.json",
         "ENGLISH_LOCAL_FILE=content/english.json",
+        "HISTORY_LOCAL_FILE=content/history.json",
         "pnpm",
         "dev",
         "--port",

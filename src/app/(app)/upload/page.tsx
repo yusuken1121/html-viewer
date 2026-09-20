@@ -6,6 +6,10 @@ import {
   ENGLISH_ENDPOINT,
   ENGLISH_LABEL,
 } from "@/features/english/english.config"
+import {
+  HISTORY_ENDPOINT,
+  HISTORY_LABEL,
+} from "@/features/history/history.config"
 import { NEWS_ENDPOINT, NEWS_LABEL } from "@/features/news/news.config"
 
 export const metadata: Metadata = { title: "アップロード" }
@@ -37,6 +41,13 @@ const DESTINATIONS: UploadDestination[] = [
     label: ENGLISH_LABEL,
     endpoint: ENGLISH_ENDPOINT,
     viewerBase: PATH.ENGLISH,
+    dated: false,
+  },
+  {
+    key: "history",
+    label: HISTORY_LABEL,
+    endpoint: HISTORY_ENDPOINT,
+    viewerBase: PATH.HISTORY,
     dated: false,
   },
 ]

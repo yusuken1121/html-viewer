@@ -12,6 +12,7 @@ const PAGES = [
   "/",
   "/news",
   "/english",
+  "/history",
   "/upload",
   "/settings",
   "/docs/sample-lecture",

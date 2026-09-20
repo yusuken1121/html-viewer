@@ -36,7 +36,7 @@ export function EnglishFeed() {
         isCollectionSetupError(error?.message) ? (
           <p>
             手順は docs/notion-setup.md
-            の「ニュース／英語用データベース」にあります。 AWS
+            の「ニュース／英語／世界史用データベース」にあります。 AWS
             用を複製した場合は、コピー先でもインテグレーションを「接続」し直してください。
           </p>
         ) : undefined

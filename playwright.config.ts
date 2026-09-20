@@ -34,6 +34,7 @@ export default defineConfig({
       // same folder so a suite can register and delete news freely.
       NEWS_LOCAL_FILE: "e2e/fixtures/news.json",
       ENGLISH_LOCAL_FILE: "e2e/fixtures/english.json",
+      HISTORY_LOCAL_FILE: "e2e/fixtures/history.json",
       // Own build directory, so a running `pnpm dev` is left undisturbed.
       NEXT_DIST_DIR: ".next-e2e",
     },

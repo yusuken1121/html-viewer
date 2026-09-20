@@ -8,6 +8,7 @@ export const PATH = {
   DOCS: "/docs",
   NEWS: "/news",
   ENGLISH: "/english",
+  HISTORY: "/history",
   UPLOAD: "/upload",
   SETTINGS: "/settings",
 } as const
