@@ -54,6 +54,15 @@ describe("toUserFacingNotionMessage", () => {
       ),
     ).toBe(NOTION_STORE_UNAVAILABLE_MESSAGE)
   })
+
+  it("keeps a download refusal distinguishable from a store outage", () => {
+    expect(
+      toUserFacingNotionMessage(
+        undefined,
+        "Refusing to download a non-HTTPS file: http://plain",
+      ),
+    ).toMatch(/HTTPS/)
+  })
 })
 
 describe("NotionWriteError", () => {

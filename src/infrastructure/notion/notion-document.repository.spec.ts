@@ -211,7 +211,7 @@ describe("NotionDocumentRepository", () => {
     )
 
     const repo = new NotionDocumentRepository(CONFIG, client, download as never)
-    await expect(repo.readContent("page-1")).rejects.toThrow(/non-HTTPS/)
+    await expect(repo.readContent("page-1")).rejects.toThrow(/HTTPS/)
   })
 })
 

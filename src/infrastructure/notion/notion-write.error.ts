@@ -19,6 +19,12 @@ export const NOTION_RATE_LIMITED_MESSAGE =
 export const NOTION_MULTIPLE_DATA_SOURCES_MESSAGE =
   "Notion のデータベースにデータソースが複数あります。環境変数の DATA_SOURCE_ID を設定してください。"
 
+export const NOTION_UNSAFE_DOWNLOAD_MESSAGE =
+  "ファイルの取得に失敗しました。HTTPS 以外の URL はダウンロードしません。"
+
+export const NOTION_DOWNLOAD_FAILED_MESSAGE =
+  "添付ファイルの取得に失敗しました。"
+
 const ACCESS_CODES = new Set([
   "object_not_found",
   "restricted_resource",
@@ -98,6 +104,12 @@ function japaneseFallback(fallback: string): string {
     fallback.includes("schema")
   ) {
     return NOTION_SCHEMA_MISMATCH_MESSAGE
+  }
+  if (fallback.includes("non-HTTPS")) {
+    return NOTION_UNSAFE_DOWNLOAD_MESSAGE
+  }
+  if (fallback.includes("too large") || fallback.includes("Downloading")) {
+    return NOTION_DOWNLOAD_FAILED_MESSAGE
   }
   return NOTION_STORE_UNAVAILABLE_MESSAGE
 }
