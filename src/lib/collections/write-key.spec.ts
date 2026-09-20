@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { CollectionNotConfiguredError } from "./collection-configuration.error"
+import {
+  CollectionNotConfiguredError,
+  isCollectionSetupError,
+} from "./collection-configuration.error"
 import {
   WriteKeyRequiredError,
   assertWriteKey,
@@ -32,17 +35,39 @@ describe("assertWriteKey", () => {
 })
 
 describe("CollectionNotConfiguredError", () => {
-  it("answers 503 and names the collection, the fix and the variable", () => {
-    const error = new CollectionNotConfiguredError(
-      "英語",
-      "NOTION_ENGLISH_DATABASE_ID",
-      "pnpm english:init-db",
-    )
+  it.each([
+    ["英語", "NOTION_ENGLISH_DATABASE_ID", "pnpm english:init-db"],
+    ["ニュース", "NOTION_NEWS_DATABASE_ID", "pnpm news:init-db"],
+  ] as const)(
+    "answers 503 and names %s, the fix and the variable",
+    (label, envVar, script) => {
+      const error = new CollectionNotConfiguredError(label, envVar, script)
 
-    expect(error.status).toBe(503)
-    expect(error.message).toContain("英語")
-    expect(error.message).toContain("pnpm english:init-db")
-    // The feed page keys its setup hint off this substring.
-    expect(error.message).toContain("NOTION_ENGLISH_DATABASE_ID")
+      expect(error.status).toBe(503)
+      expect(error.message).toContain(label)
+      expect(error.message).toContain(script)
+      // The feed page keys its setup hint off this substring.
+      expect(error.message).toContain(envVar)
+    },
+  )
+})
+
+describe("isCollectionSetupError", () => {
+  it("matches a missing database id and a copied database the integration cannot see", () => {
+    expect(
+      isCollectionSetupError(
+        new CollectionNotConfiguredError(
+          "ニュース",
+          "NOTION_NEWS_DATABASE_ID",
+          "pnpm news:init-db",
+        ).message,
+      ),
+    ).toBe(true)
+    expect(
+      isCollectionSetupError(
+        "Notion のデータベースにアクセスできません。複製したデータベースはインテグレーションの接続が引き継がれません。",
+      ),
+    ).toBe(true)
+    expect(isCollectionSetupError("Internal Server Error")).toBe(false)
   })
 })

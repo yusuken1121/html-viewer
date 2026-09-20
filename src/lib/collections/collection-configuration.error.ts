@@ -20,3 +20,19 @@ export class CollectionNotConfiguredError extends DomainError {
     )
   }
 }
+
+/**
+ * Should the feed show the setup copy under the error?
+ *
+ * True for a missing database id and for a copied database the integration
+ * cannot see — those are the two failures a new collection hits, and both
+ * are fixed in docs/notion-setup.md rather than by retrying.
+ */
+export function isCollectionSetupError(message: string | undefined): boolean {
+  if (!message) return false
+  return (
+    message.includes("DATABASE_ID") ||
+    message.includes("未設定") ||
+    message.includes("インテグレーション")
+  )
+}
