@@ -252,6 +252,44 @@ describe("NotionCollectionRepository.create", () => {
       "Published",
     ])
   })
+
+  it("matches the AWS/docs schema and does not send Published", async () => {
+    const pagesCreate = vi.fn().mockResolvedValue(page())
+    const client = {
+      fileUploads: {
+        create: vi.fn().mockResolvedValue({ id: "u" }),
+        send: vi.fn().mockResolvedValue({}),
+      },
+      pages: { create: pagesCreate },
+    } as unknown as Client
+
+    await new NotionCollectionRepository(
+      {
+        ...CONFIG,
+        properties: {
+          title: "Name",
+          file: "File",
+          category: "Category",
+          tags: "Tags",
+        },
+      },
+      client,
+    ).create({
+      title: "句動詞 20 選",
+      fileName: "phrasal-verbs.html",
+      html: "<html></html>",
+      category: "語彙",
+      tags: ["TOEIC"],
+      publishedAt: new Date("2026-09-20T00:00:00.000Z"),
+    })
+
+    expect(Object.keys(pagesCreate.mock.calls[0]![0].properties)).toEqual([
+      "Name",
+      "File",
+      "Category",
+      "Tags",
+    ])
+  })
 })
 
 describe("NotionCollectionRepository.update", () => {

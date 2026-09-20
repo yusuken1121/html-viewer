@@ -68,7 +68,6 @@ async function main() {
         File: { files: {} },
         Category: { select: {} },
         Tags: { multi_select: {} },
-        Published: { date: {} },
       },
     },
   })
