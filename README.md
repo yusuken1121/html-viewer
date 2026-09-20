@@ -81,6 +81,8 @@ DOCS_SOURCE=local pnpm dev
 ファイル**を iframe で表示します。違うのは並び順（公開日の新しい順）と、
 Notion のデータベースが別なことだけです。準備は
 [docs/notion-setup.md](docs/notion-setup.md) を参照してください。
+AWS 用データベースを複製しただけでは不十分で、コピー先でも
+インテグレーションを「接続」し直す必要があります。
 
 ```bash
 pnpm news:init-db <親ページの URL>      # → NOTION_NEWS_DATABASE_ID

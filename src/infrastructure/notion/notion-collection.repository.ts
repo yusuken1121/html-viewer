@@ -27,6 +27,7 @@ import { NotionPropertyReader } from "./notion-property.reader"
 import { throttleNotion, withNotionRetry } from "./notion-throttle"
 import { NotionWriteError, isMissingPage } from "./notion-write.error"
 import { UploadTimeoutError } from "@/core/domain/upload-timeout.error"
+import { DomainError } from "@/core/domain/domain.error"
 
 /**
  * Which columns of the Notion database play which role.
@@ -171,6 +172,15 @@ export class NotionCollectionRepository implements ICollectionRepository {
         html: input.html,
       })
 
+      // A leftover env var (Published on an AWS-schema copy) must not 400
+      // the whole upload. Ask the live schema which columns exist.
+      const existing = await this.dataSourcePropertyNames(dataSourceId)
+      if (!existing.has(properties.title) || !existing.has(properties.file)) {
+        throw new NotionWriteError(
+          "Notion collection is missing Name or File columns",
+        )
+      }
+
       const pageProperties: Record<string, unknown> = {
         [properties.title]: { title: [{ text: { content: input.title } }] },
         [properties.file]: fileUploadProperty(uploadId, input.fileName),
@@ -178,17 +188,25 @@ export class NotionCollectionRepository implements ICollectionRepository {
 
       // Only touch the optional columns when there is something to write, so
       // a database created without them still accepts registrations.
-      if (properties.category && input.category) {
+      if (
+        properties.category &&
+        input.category &&
+        existing.has(properties.category)
+      ) {
         pageProperties[properties.category] = {
           select: { name: input.category },
         }
       }
-      if (properties.tags && input.tags.length > 0) {
+      if (
+        properties.tags &&
+        input.tags.length > 0 &&
+        existing.has(properties.tags)
+      ) {
         pageProperties[properties.tags] = {
           multi_select: input.tags.map((name) => ({ name })),
         }
       }
-      if (properties.publishedAt) {
+      if (properties.publishedAt && existing.has(properties.publishedAt)) {
         pageProperties[properties.publishedAt] = {
           date: { start: input.publishedAt.toISOString() },
         }
@@ -274,11 +292,37 @@ export class NotionCollectionRepository implements ICollectionRepository {
 
   private async resolve(): Promise<string> {
     if (this.dataSourceId) return this.dataSourceId
-    this.dataSourceId = await resolveDataSourceId(
-      this.client,
-      this.config.databaseId,
-    )
-    return this.dataSourceId
+    try {
+      this.dataSourceId = await resolveDataSourceId(
+        this.client,
+        this.config.databaseId,
+      )
+      return this.dataSourceId
+    } catch (error) {
+      if (error instanceof DomainError) throw error
+      throw new NotionWriteError(
+        "Failed to resolve the Notion data source",
+        error,
+      )
+    }
+  }
+
+  private async dataSourcePropertyNames(
+    dataSourceId: string,
+  ): Promise<Set<string>> {
+    try {
+      const dataSource = (await withNotionRetry(() =>
+        this.client.dataSources.retrieve({ data_source_id: dataSourceId }),
+      )) as { properties?: Record<string, unknown> }
+
+      return new Set(Object.keys(dataSource.properties ?? {}))
+    } catch (error) {
+      if (error instanceof DomainError) throw error
+      throw new NotionWriteError(
+        "Failed to read the Notion database schema",
+        error,
+      )
+    }
   }
 
   private async retrievePage(id: string): Promise<NotionPage | null> {

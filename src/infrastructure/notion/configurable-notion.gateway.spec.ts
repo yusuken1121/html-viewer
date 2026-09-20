@@ -76,9 +76,8 @@ describe("ConfigurableNotionGateway", () => {
 
     // Act & Assert
     await expect(gateway.create(sampleRecord)).rejects.toThrow(NotionWriteError)
-    await expect(gateway.create(sampleRecord)).rejects.toThrow(
-      "Failed to create Notion page",
-    )
+    const error = await gateway.create(sampleRecord).catch((thrown) => thrown)
+    expect(error).toMatchObject({ status: 502 })
   })
 
   it("should transparently throw validation errors originating from NotionPropertyBuilder without wrapping them", async () => {

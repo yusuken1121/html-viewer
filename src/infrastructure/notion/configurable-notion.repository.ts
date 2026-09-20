@@ -14,6 +14,7 @@ import { NotionPropertyBuilder } from "./notion-property.builder"
 import { NotionPropertyReader } from "./notion-property.reader"
 import { resolveDataSourceId } from "./notion-data-source"
 import { withNotionRetry } from "./notion-throttle"
+import { DomainError } from "@/core/domain/domain.error"
 import { NotionWriteError } from "./notion-write.error"
 
 export { NotionDataSourceError } from "./notion-data-source"
@@ -55,11 +56,19 @@ export class ConfigurableNotionRepository<
 
   private async resolveDataSourceId(): Promise<string> {
     if (this.dataSourceId) return this.dataSourceId
-    this.dataSourceId = await resolveDataSourceId(
-      this.client,
-      this.config.databaseId,
-    )
-    return this.dataSourceId
+    try {
+      this.dataSourceId = await resolveDataSourceId(
+        this.client,
+        this.config.databaseId,
+      )
+      return this.dataSourceId
+    } catch (error) {
+      if (error instanceof DomainError) throw error
+      throw new NotionWriteError(
+        "Failed to resolve the Notion data source",
+        error,
+      )
+    }
   }
 
   async findById(id: string): Promise<StoredRecord<TRecord> | null> {
