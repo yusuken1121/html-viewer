@@ -4,8 +4,12 @@ import { optionalEnv } from "@/lib/env"
 import { NEWS_LABEL } from "../news.config"
 
 /**
- * Which Notion columns hold what. The defaults match `docs/notion-setup.md`;
- * override the names with env vars when the database uses Japanese headers.
+ * Which Notion columns hold what.
+ *
+ * Defaults match the original AWS/docs database: Name, File, Category, Tags.
+ * A Published date column is optional — set `NOTION_NEWS_PUBLISHED_PROPERTY`
+ * only if you added one. Override any name with env vars when the headers
+ * differ (including Japanese).
  *
  * A function, not a constant: reading `process.env` at module scope would
  * bake the build-time value into the bundle and hide a missing variable until
@@ -21,6 +25,8 @@ export function createNewsNotionConfig(): NotionCollectionConfig {
     )
   }
 
+  const publishedAt = optionalEnv("NOTION_NEWS_PUBLISHED_PROPERTY", "")
+
   return {
     databaseId,
     dataSourceId: optionalEnv("NOTION_NEWS_DATA_SOURCE_ID", "") || undefined,
@@ -29,7 +35,7 @@ export function createNewsNotionConfig(): NotionCollectionConfig {
       file: optionalEnv("NOTION_NEWS_FILE_PROPERTY", "File"),
       category: optionalEnv("NOTION_NEWS_CATEGORY_PROPERTY", "Category"),
       tags: optionalEnv("NOTION_NEWS_TAGS_PROPERTY", "Tags"),
-      publishedAt: optionalEnv("NOTION_NEWS_PUBLISHED_PROPERTY", "Published"),
+      ...(publishedAt ? { publishedAt } : {}),
     },
   }
 }

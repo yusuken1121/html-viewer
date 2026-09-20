@@ -30,14 +30,14 @@ const DESTINATIONS: UploadDestination[] = [
     label: NEWS_LABEL,
     endpoint: NEWS_ENDPOINT,
     viewerBase: PATH.NEWS,
-    dated: true,
+    dated: false,
   },
   {
     key: "english",
     label: ENGLISH_LABEL,
     endpoint: ENGLISH_ENDPOINT,
     viewerBase: PATH.ENGLISH,
-    dated: true,
+    dated: false,
   },
 ]
 

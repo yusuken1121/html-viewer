@@ -203,9 +203,8 @@ for (const { key, label, heading } of COLLECTIONS) {
       })
       await expect(page.getByLabel("タイトル")).toHaveValue("フォームから登録")
 
-      // Dated collections offer a publication date; the library does not.
-      await expect(page.getByLabel("公開日")).toBeVisible()
-      await page.getByLabel("公開日").fill("2026-09-15")
+      // Same four columns as the AWS/docs database — no publication date.
+      await expect(page.getByLabel("公開日")).toHaveCount(0)
 
       await page.getByRole("button", { name: "アップロード" }).click()
 
@@ -213,12 +212,10 @@ for (const { key, label, heading } of COLLECTIONS) {
       const frame = page.frameLocator("iframe[title='フォームから登録']")
       await expect(frame.locator("#body")).toHaveText("届きました")
 
-      // It landed in this collection, dated as asked.
       await page.goto(`/${key}`)
       await expect(
         page.getByRole("heading", { name: "フォームから登録" }),
       ).toBeVisible()
-      await expect(page.getByText("2026年9月15日")).toBeVisible()
     })
 
     test("the API refuses anything that is not an HTML file", async ({
