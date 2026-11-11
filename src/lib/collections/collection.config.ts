@@ -25,6 +25,12 @@ export type CollectionApiConfig = {
   /** Constructs the store. Called per request, as the document routes do. */
   repository: () => ICollectionRepository
   /**
+   * Whether list answers may be served from the shared list cache. True for
+   * Notion, which is slow to page through; false for the local JSON file,
+   * which is also written outside the API. See `cachedList`.
+   */
+  cachesList: () => boolean
+  /**
    * Environment variable holding this collection's own write key. Falls back
    * to `DOCS_UPLOAD_SECRET` when it is unset.
    */

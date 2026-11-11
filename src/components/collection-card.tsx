@@ -114,3 +114,72 @@ export function CollectionCard({
     </Link>
   )
 }
+
+/**
+ * The same item as one dense line: what to scan when looking for something.
+ *
+ * Tags stay out of the line — they are what the chips above filter by — so a
+ * title gets the room. The title keeps its heading role, as on the card, so
+ * the page outline reads the same in either view.
+ */
+export function CollectionRow({
+  item,
+  href,
+  icon: Icon = FileText,
+}: {
+  item: CollectionCardItem
+  href: string
+  icon?: LucideIcon
+}) {
+  const Glyph = item.hasFile ? Icon : FileWarning
+
+  const body = (
+    <div
+      className={cn(
+        "flex items-center gap-3 px-3 py-2.5 transition-colors",
+        item.hasFile ? "hover:bg-accent" : "opacity-60",
+      )}
+    >
+      <Glyph
+        className={cn(
+          "size-4 shrink-0",
+          item.hasFile ? "text-primary" : "text-muted-foreground",
+        )}
+        aria-hidden="true"
+      />
+      <h2 className="min-w-0 flex-1 truncate text-sm font-medium">
+        {item.title}
+        {!item.hasFile && (
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            （ファイル未添付）
+          </span>
+        )}
+      </h2>
+      {item.category && (
+        <Badge variant="secondary" className="hidden shrink-0 sm:inline-flex">
+          {item.category}
+        </Badge>
+      )}
+      <time
+        dateTime={item.publishedAt}
+        className="shrink-0 text-xs text-muted-foreground tabular-nums"
+      >
+        {DATE_FORMAT.format(new Date(item.publishedAt))}
+      </time>
+    </div>
+  )
+
+  if (!item.hasFile) {
+    return <div aria-disabled="true">{body}</div>
+  }
+
+  return (
+    <Link
+      href={href}
+      className="block outline-none focus-visible:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
+      aria-label={`${item.title} を開く`}
+    >
+      {body}
+    </Link>
+  )
+}

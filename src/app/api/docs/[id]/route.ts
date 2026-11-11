@@ -16,7 +16,8 @@ import { UpdateDocumentUseCase } from "@/features/docs/use-cases/update-document
 import { optionalEnv } from "@/lib/env"
 import { clientKey, enforceRateLimit } from "@/lib/rate-limit"
 import { routeHandler } from "@/lib/route-handler"
-import { createDocumentRepository } from "../_lib/repository"
+import { invalidateList } from "@/lib/list-cache"
+import { DOCS_LIST_CACHE, createDocumentRepository } from "../_lib/repository"
 
 export const dynamic = "force-dynamic"
 
@@ -74,6 +75,7 @@ export const PATCH = routeHandler<Context>(
 
     const useCase = new UpdateDocumentUseCase(createDocumentRepository())
     const document = await useCase.execute(id, changes)
+    invalidateList(DOCS_LIST_CACHE)
 
     return NextResponse.json(toDocumentDto(document))
   },
@@ -95,6 +97,7 @@ export const DELETE = routeHandler<Context>(
 
     const useCase = new DeleteDocumentUseCase(createDocumentRepository())
     await useCase.execute(id)
+    invalidateList(DOCS_LIST_CACHE)
 
     return NextResponse.json({ id })
   },

@@ -16,13 +16,12 @@ import { NEWS_ENDPOINT } from "./news.config"
  * It defaults to whatever `DOCS_SOURCE` says, so the one switch that already
  * makes the app run without credentials keeps doing so here too.
  */
-function createNewsRepository(): ICollectionRepository {
-  const source = optionalEnv(
-    "NEWS_SOURCE",
-    optionalEnv("DOCS_SOURCE", "notion"),
-  )
+function source(): string {
+  return optionalEnv("NEWS_SOURCE", optionalEnv("DOCS_SOURCE", "notion"))
+}
 
-  if (source === "local") {
+function createNewsRepository(): ICollectionRepository {
+  if (source() === "local") {
     return createLocalCollectionRepository(
       optionalEnv("NEWS_LOCAL_FILE", "content/news.json"),
     )
@@ -36,5 +35,6 @@ export const NEWS_API: CollectionApiConfig = {
   name: "news",
   endpoint: NEWS_ENDPOINT,
   repository: createNewsRepository,
+  cachesList: () => source() !== "local",
   secretEnvVar: "NEWS_API_SECRET",
 }

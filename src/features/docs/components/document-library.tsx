@@ -4,6 +4,13 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { AlertCircle, Inbox, Plus, RefreshCcw, Search } from "lucide-react"
 
+import {
+  ListRowsSkeleton,
+  ListToolbar,
+  matchesQuery,
+  useListView,
+} from "@/components/list-toolbar"
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,27 +20,20 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PATH } from "@/constants/path"
 import { cn } from "@/lib/utils"
 import { useDocuments } from "../api/use-docs"
 import type { DocumentDto } from "../docs.schema"
-import { DocumentCard } from "./document-card"
+import { DocumentCard, DocumentRow } from "./document-card"
 
 const ALL = "__all__"
 
-function matches(document: DocumentDto, needle: string): boolean {
-  if (!needle) return true
-  const haystack = [
-    document.title,
-    document.category ?? "",
-    ...document.tags,
-    document.fileName ?? "",
-  ]
-    .join(" ")
-    .toLowerCase()
-  return haystack.includes(needle)
+function matches(document: DocumentDto, query: string): boolean {
+  return matchesQuery(
+    [document.title, document.category, ...document.tags, document.fileName],
+    query,
+  )
 }
 
 /**
@@ -47,6 +47,7 @@ export function DocumentLibrary() {
     useDocuments()
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState(ALL)
+  const [view, setView] = useListView("library")
 
   const categories = useMemo(() => {
     const set = new Set<string>()
@@ -56,14 +57,16 @@ export function DocumentLibrary() {
     return [...set].sort((a, b) => a.localeCompare(b, "ja"))
   }, [data])
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return (data ?? []).filter(
-      (document) =>
-        (category === ALL || document.category === category) &&
-        matches(document, needle),
-    )
-  }, [data, query, category])
+  const visible = useMemo(
+    () =>
+      (data ?? []).filter(
+        (document) =>
+          (category === ALL || document.category === category) &&
+          matches(document, query),
+      ),
+    [data, query, category],
+  )
+  const filtered = Boolean(data) && visible.length !== data?.length
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -74,6 +77,7 @@ export function DocumentLibrary() {
             {data
               ? `${data.length} 件のドキュメント`
               : "ドキュメントを読み込んでいます"}
+            {filtered && `（${visible.length} 件を表示中）`}
           </p>
         </div>
         <Button asChild>
@@ -85,20 +89,14 @@ export function DocumentLibrary() {
       </header>
 
       <div className="flex flex-col gap-3">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="タイトル・カテゴリ・タグで検索"
-            aria-label="ドキュメントを検索"
-            className="h-11 pl-9 text-base"
-          />
-        </div>
+        <ListToolbar
+          query={query}
+          onQueryChange={setQuery}
+          placeholder="タイトル・カテゴリ・タグで検索"
+          searchLabel="ドキュメントを検索"
+          view={view}
+          onViewChange={setView}
+        />
 
         {categories.length > 0 && (
           <div
@@ -129,7 +127,8 @@ export function DocumentLibrary() {
         )}
       </div>
 
-      {isPending && <LibrarySkeleton />}
+      {isPending &&
+        (view === "list" ? <ListRowsSkeleton /> : <LibrarySkeleton />)}
 
       {isError && (
         <Alert variant="destructive">
@@ -192,7 +191,17 @@ export function DocumentLibrary() {
         </Empty>
       )}
 
-      {visible.length > 0 && (
+      {visible.length > 0 && view === "list" && (
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+          {visible.map((document) => (
+            <li key={document.id}>
+              <DocumentRow document={document} />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {visible.length > 0 && view === "grid" && (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((document) => (
             <li key={document.id} className="min-w-0">

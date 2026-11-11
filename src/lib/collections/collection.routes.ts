@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { InvalidCollectionItemError } from "@/core/domain/collection-item.entity"
 import { MAX_HTML_BYTES } from "@/core/domain/html-file.rules"
 import { optionalEnv } from "@/lib/env"
+import { cachedList, invalidateList } from "@/lib/list-cache"
 import { clientKey, enforceRateLimit } from "@/lib/rate-limit"
 import { routeHandler } from "@/lib/route-handler"
 import {
@@ -109,6 +110,8 @@ async function fromMultipart(req: NextRequest): Promise<CreateItemInput> {
  *
  * The list is cached at the CDN for half a minute but never in the browser:
  * an item registered a second ago must not be hidden behind a local copy.
+ * Behind the CDN it is also kept in the shared list cache, so a CDN miss is
+ * answered without paging through Notion; every write below clears it.
  *
  * Registration takes two shapes because there are two kinds of caller. A form
  * sends `multipart/form-data` with a `file` part, exactly like the document
@@ -130,18 +133,23 @@ export function collectionRoutes(config: CollectionApiConfig) {
         Object.fromEntries(req.nextUrl.searchParams),
       )
 
-      const items = await new ListCollectionUseCase(
-        config.repository(),
-      ).execute(query)
-
-      return NextResponse.json(
-        { items: items.map(toDto) },
-        {
-          headers: {
-            "Cache-Control": "public, max-age=0, must-revalidate, s-maxage=30",
-          },
+      const body = await cachedList(
+        config.name,
+        [query.tag ?? "", String(query.limit ?? "")],
+        async () => {
+          const items = await new ListCollectionUseCase(
+            config.repository(),
+          ).execute(query)
+          return { items: items.map(toDto) }
         },
+        config.cachesList(),
       )
+
+      return NextResponse.json(body, {
+        headers: {
+          "Cache-Control": "public, max-age=0, must-revalidate, s-maxage=30",
+        },
+      })
     },
   )
 
@@ -160,6 +168,7 @@ export function collectionRoutes(config: CollectionApiConfig) {
       const item = await new CreateCollectionItemUseCase(
         config.repository(),
       ).execute(input)
+      invalidateList(config.name)
 
       return NextResponse.json(toDto(item), { status: 201 })
     },
@@ -204,6 +213,7 @@ export function collectionItemRoutes(config: CollectionApiConfig) {
       const item = await new UpdateCollectionItemUseCase(
         config.repository(),
       ).execute(id, changes)
+      invalidateList(config.name)
 
       return NextResponse.json(toDto(item))
     },
@@ -222,6 +232,7 @@ export function collectionItemRoutes(config: CollectionApiConfig) {
 
       const id = collectionIdSchema.parse((await params).id)
       await new DeleteCollectionItemUseCase(config.repository()).execute(id)
+      invalidateList(config.name)
 
       return NextResponse.json({ id })
     },
