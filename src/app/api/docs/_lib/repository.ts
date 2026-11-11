@@ -15,13 +15,23 @@ import { optionalEnv } from "@/lib/env"
  * and a first `pnpm dev` work on a fresh clone.
  */
 export function createDocumentRepository(): IDocumentRepository {
-  const source = optionalEnv("DOCS_SOURCE", "notion")
-
-  if (source === "local") {
+  if (documentSource() === "local") {
     return createLocalDocumentRepository(
       optionalEnv("DOCS_LOCAL_DIR", "content"),
     )
   }
 
   return createNotionDocumentRepository(createDocsNotionConfig())
+}
+
+function documentSource(): string {
+  return optionalEnv("DOCS_SOURCE", "notion")
+}
+
+/** Name of the library in the shared list cache. */
+export const DOCS_LIST_CACHE = "docs"
+
+/** The local directory is edited by hand too, so it is never cached. */
+export function documentListIsCached(): boolean {
+  return documentSource() !== "local"
 }

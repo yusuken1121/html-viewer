@@ -19,7 +19,12 @@ import { UploadDocumentUseCase } from "@/features/docs/use-cases/upload-document
 import { optionalEnv } from "@/lib/env"
 import { clientKey, enforceRateLimit } from "@/lib/rate-limit"
 import { routeHandler } from "@/lib/route-handler"
-import { createDocumentRepository } from "./_lib/repository"
+import { cachedList, invalidateList } from "@/lib/list-cache"
+import {
+  DOCS_LIST_CACHE,
+  createDocumentRepository,
+  documentListIsCached,
+} from "./_lib/repository"
 
 export const dynamic = "force-dynamic"
 
@@ -36,21 +41,29 @@ export const dynamic = "force-dynamic"
  * the copy stale, and a stale copy is exactly what a browser will reuse.
  * React Query already decides how long the client may reuse a list; this
  * header decides it for the CDN alone.
+ *
+ * Behind the CDN the list is also kept in the shared list cache, so a CDN
+ * miss does not page through Notion; every write clears it.
  */
 export const GET = routeHandler("GET /api/docs", async (req: NextRequest) => {
   await enforceRateLimit(`docs:list:${clientKey(req)}`, DOCS_LIST_RATE_LIMIT)
 
-  const useCase = new ListDocumentsUseCase(createDocumentRepository())
-  const documents = await useCase.execute()
-
-  return NextResponse.json(
-    { items: documents.map(toDocumentDto) },
-    {
-      headers: {
-        "Cache-Control": "public, max-age=0, must-revalidate, s-maxage=30",
-      },
+  const body = await cachedList(
+    DOCS_LIST_CACHE,
+    [],
+    async () => {
+      const useCase = new ListDocumentsUseCase(createDocumentRepository())
+      const documents = await useCase.execute()
+      return { items: documents.map(toDocumentDto) }
     },
+    documentListIsCached(),
   )
+
+  return NextResponse.json(body, {
+    headers: {
+      "Cache-Control": "public, max-age=0, must-revalidate, s-maxage=30",
+    },
+  })
 })
 
 function formText(form: FormData, key: string): string | undefined {
@@ -103,6 +116,7 @@ export const POST = routeHandler("POST /api/docs", async (req: NextRequest) => {
     category: fields.category || null,
     tags: parseTags(fields.tags),
   })
+  invalidateList(DOCS_LIST_CACHE)
 
   return NextResponse.json(toDocumentDto(document), { status: 201 })
 })

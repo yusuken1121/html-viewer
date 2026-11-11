@@ -16,13 +16,12 @@ import { ENGLISH_ENDPOINT } from "./english.config"
  * It defaults to whatever `DOCS_SOURCE` says, so the one switch that already
  * makes the app run without credentials keeps doing so here too.
  */
-function createEnglishRepository(): ICollectionRepository {
-  const source = optionalEnv(
-    "ENGLISH_SOURCE",
-    optionalEnv("DOCS_SOURCE", "notion"),
-  )
+function source(): string {
+  return optionalEnv("ENGLISH_SOURCE", optionalEnv("DOCS_SOURCE", "notion"))
+}
 
-  if (source === "local") {
+function createEnglishRepository(): ICollectionRepository {
+  if (source() === "local") {
     return createLocalCollectionRepository(
       optionalEnv("ENGLISH_LOCAL_FILE", "content/english.json"),
     )
@@ -36,5 +35,6 @@ export const ENGLISH_API: CollectionApiConfig = {
   name: "english",
   endpoint: ENGLISH_ENDPOINT,
   repository: createEnglishRepository,
+  cachesList: () => source() !== "local",
   secretEnvVar: "ENGLISH_API_SECRET",
 }

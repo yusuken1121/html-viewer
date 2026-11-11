@@ -16,13 +16,12 @@ import { HISTORY_ENDPOINT } from "./history.config"
  * It defaults to whatever `DOCS_SOURCE` says, so the one switch that already
  * makes the app run without credentials keeps doing so here too.
  */
-function createHistoryRepository(): ICollectionRepository {
-  const source = optionalEnv(
-    "HISTORY_SOURCE",
-    optionalEnv("DOCS_SOURCE", "notion"),
-  )
+function source(): string {
+  return optionalEnv("HISTORY_SOURCE", optionalEnv("DOCS_SOURCE", "notion"))
+}
 
-  if (source === "local") {
+function createHistoryRepository(): ICollectionRepository {
+  if (source() === "local") {
     return createLocalCollectionRepository(
       optionalEnv("HISTORY_LOCAL_FILE", "content/history.json"),
     )
@@ -36,5 +35,6 @@ export const HISTORY_API: CollectionApiConfig = {
   name: "history",
   endpoint: HISTORY_ENDPOINT,
   repository: createHistoryRepository,
+  cachesList: () => source() !== "local",
   secretEnvVar: "HISTORY_API_SECRET",
 }

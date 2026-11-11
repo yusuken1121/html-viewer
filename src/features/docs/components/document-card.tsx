@@ -97,3 +97,72 @@ export function DocumentCard({ document }: { document: DocumentDto }) {
     </div>
   )
 }
+
+/**
+ * The same document as one dense line, for scanning a long library.
+ *
+ * Tags are left to the search box and the category to its badge, so the
+ * title gets the width. The menu sits beside the link for the same reason as
+ * on the card: a button inside an <a> is invalid and fights the navigation.
+ */
+export function DocumentRow({ document }: { document: DocumentDto }) {
+  const Icon = document.hasFile ? FileText : FileWarning
+
+  const body = (
+    <div
+      className={cn(
+        "flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3",
+        !document.hasFile && "opacity-60",
+      )}
+    >
+      <Icon
+        className={cn(
+          "size-4 shrink-0",
+          document.hasFile ? "text-primary" : "text-muted-foreground",
+        )}
+        aria-hidden="true"
+      />
+      <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
+        {document.title}
+        {!document.hasFile && (
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            （ファイル未添付）
+          </span>
+        )}
+      </h3>
+      {document.category && (
+        <Badge variant="secondary" className="hidden shrink-0 sm:inline-flex">
+          {document.category}
+        </Badge>
+      )}
+      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+        {DATE_FORMAT.format(new Date(document.updatedAt))}
+      </span>
+    </div>
+  )
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-1 pr-1.5 transition-colors",
+        document.hasFile && "hover:bg-accent",
+      )}
+    >
+      {document.hasFile ? (
+        <Link
+          href={documentViewerPath(document.id)}
+          className="flex min-w-0 flex-1 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
+          aria-label={`${document.title} を開く`}
+        >
+          {body}
+        </Link>
+      ) : (
+        <div aria-disabled="true" className="flex min-w-0 flex-1">
+          {body}
+        </div>
+      )}
+
+      <DocumentActions document={document} className="shrink-0" />
+    </div>
+  )
+}

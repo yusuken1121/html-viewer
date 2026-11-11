@@ -21,9 +21,37 @@ export class NotionDataSourceError extends DomainError {
  *
  * Almost every database has exactly one, so asking the user for an id they
  * cannot find in any URL would be hostile. Resolve it from the database id
- * once and let the caller remember it; only ambiguity is an error worth raising.
+ * once per process; only ambiguity is an error worth raising.
  */
 export async function resolveDataSourceId(
+  client: Client,
+  databaseId: string,
+): Promise<string> {
+  // The answer never changes for a given database, yet every request builds a
+  // fresh repository and would pay a Notion round-trip (and a throttle slot)
+  // to ask again. Remember it for the life of the process; a failure is not
+  // remembered, so a database shared with the integration later still works.
+  const known = resolvedDataSources.get(databaseId)
+  if (known) return known
+
+  const pending = lookUpDataSourceId(client, databaseId)
+  resolvedDataSources.set(databaseId, pending)
+  pending.catch(() => {
+    if (resolvedDataSources.get(databaseId) === pending) {
+      resolvedDataSources.delete(databaseId)
+    }
+  })
+  return pending
+}
+
+const resolvedDataSources = new Map<string, Promise<string>>()
+
+/** Reset between tests; not meant for application code. */
+export function resetResolvedDataSources(): void {
+  resolvedDataSources.clear()
+}
+
+async function lookUpDataSourceId(
   client: Client,
   databaseId: string,
 ): Promise<string> {
