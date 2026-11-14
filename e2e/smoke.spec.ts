@@ -91,3 +91,37 @@ test("the app pages keep the baseline security headers", async ({
   )
   expect(response.headers()["content-security-policy"]).toContain("nonce-")
 })
+
+test("the search survives a trip to the viewer and back", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("link", { name: /E2E サンプル講義/ }).waitFor()
+
+  await page.getByLabel("ドキュメントを検索").fill("サンプル")
+  await expect(page).toHaveURL(/\?q=%E3%82%B5/)
+
+  await page.getByRole("link", { name: "E2E サンプル講義 を開く" }).click()
+  await expect(page).toHaveURL(/\/docs\/sample-lecture\?q=/)
+
+  await page.getByRole("link", { name: "ライブラリへ戻る" }).click()
+  await expect(page).toHaveURL(/\/\?q=/)
+  await expect(page.getByLabel("ドキュメントを検索")).toHaveValue("サンプル")
+})
+
+test("a document once opened is listed under 最近開いたもの", async ({
+  page,
+}) => {
+  await page.goto("/docs/sample-lecture")
+  await expect(
+    page.getByRole("heading", { level: 1, name: "E2E サンプル講義" }),
+  ).toBeVisible()
+
+  await page.getByRole("link", { name: "ライブラリへ戻る" }).click()
+  const recent = page.getByRole("region", { name: "最近開いたもの" })
+  await expect(
+    recent.getByRole("link", { name: "E2E サンプル講義 を続きから開く" }),
+  ).toBeVisible()
+
+  // A search hides it, so the list below is what the search is about.
+  await page.getByLabel("ドキュメントを検索").fill("サンプル")
+  await expect(recent).toHaveCount(0)
+})

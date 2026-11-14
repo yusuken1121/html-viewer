@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
-import { Moon, Sun } from "lucide-react"
+import { History, Moon, Sun } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -15,6 +15,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { APP_CONFIG } from "@/constants/app-config"
+import { clearReadingHistory, useReadingHistory } from "@/lib/reading-history"
 
 const THEMES = [
   { value: "light", label: "Light", icon: Sun },
@@ -51,6 +52,40 @@ function ThemeToggle() {
   )
 }
 
+/**
+ * Forget what was read. Everything listed at that moment then counts as
+ * read, so 未読 starts again from what arrives next.
+ */
+function ReadingHistoryReset() {
+  const history = useReadingHistory()
+  const [cleared, setCleared] = useState(false)
+  const count = Object.keys(history.entries).length
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="space-y-0.5">
+        <Label className="text-base">閲覧履歴</Label>
+        <p className="text-sm text-muted-foreground">
+          {cleared
+            ? "消去しました。いま並んでいる項目はすべて既読になりました。"
+            : `この端末で開いた ${count} 件の記録です。「未読」と「最近開いたもの」に使われます。`}
+        </p>
+      </div>
+      <Button
+        variant="outline"
+        disabled={count === 0}
+        onClick={() => {
+          clearReadingHistory()
+          setCleared(true)
+        }}
+      >
+        <History className="h-4 w-4" />
+        消去
+      </Button>
+    </div>
+  )
+}
+
 export default function SettingsPage() {
   return (
     <div className="container mx-auto max-w-4xl py-10">
@@ -72,6 +107,18 @@ export default function SettingsPage() {
               </div>
               <ThemeToggle />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>閲覧履歴</CardTitle>
+            <CardDescription>
+              ブラウザ内にだけ保存され、他の端末とは共有されません。
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ReadingHistoryReset />
           </CardContent>
         </Card>
 

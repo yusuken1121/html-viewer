@@ -1,15 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo } from "react"
 import Link from "next/link"
 import { AlertCircle, Inbox, Plus, RefreshCcw, Search } from "lucide-react"
 
 import {
+  FilterChips,
   ListRowsSkeleton,
   ListToolbar,
-  matchesQuery,
   useListView,
 } from "@/components/list-toolbar"
+import { RecentlyOpened } from "@/components/recently-opened"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -22,32 +23,32 @@ import {
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PATH } from "@/constants/path"
+import { useListState } from "@/hooks/use-list-state"
+import { filterList, isItemUnread } from "@/lib/list-filter"
+import { isNarrowed, withSearch } from "@/lib/list-state"
+import { startReadingHistory, useReadingHistory } from "@/lib/reading-history"
 import { cn } from "@/lib/utils"
 import { useDocuments } from "../api/use-docs"
-import type { DocumentDto } from "../docs.schema"
+import { DOCUMENT_LIST } from "../document-list"
 import { DocumentCard, DocumentRow } from "./document-card"
 
-const ALL = "__all__"
-
-function matches(document: DocumentDto, query: string): boolean {
-  return matchesQuery(
-    [document.title, document.category, ...document.tags, document.fileName],
-    query,
-  )
-}
-
 /**
- * The home screen: every document, searchable, grouped by category chip.
+ * The home screen: every document, searchable, grouped by category chip,
+ * with what was opened last on top.
  *
  * All filtering is local — the list is one request and a personal library is
- * small. See `ListDocumentsUseCase` for when that stops being true.
+ * small. See `ListDocumentsUseCase` for when that stops being true. The
+ * search, the chip and 未読 live in the URL (`useListState`), so returning
+ * from the viewer finds the list as it was left.
  */
 export function DocumentLibrary() {
   const { data, isPending, isError, error, refetch, isFetching } =
     useDocuments()
-  const [query, setQuery] = useState("")
-  const [category, setCategory] = useState(ALL)
+  const { state, search, update } = useListState("category")
   const [view, setView] = useListView("library")
+  const history = useReadingHistory()
+
+  useEffect(() => startReadingHistory(), [])
 
   const categories = useMemo(() => {
     const set = new Set<string>()
@@ -58,15 +59,19 @@ export function DocumentLibrary() {
   }, [data])
 
   const visible = useMemo(
+    () => filterList(data ?? [], state, history, DOCUMENT_LIST),
+    [data, state, history],
+  )
+  const unreadCount = useMemo(
     () =>
-      (data ?? []).filter(
-        (document) =>
-          (category === ALL || document.category === category) &&
-          matches(document, query),
-      ),
-    [data, query, category],
+      (data ?? []).filter((document) =>
+        isItemUnread(document, history, DOCUMENT_LIST),
+      ).length,
+    [data, history],
   )
   const filtered = Boolean(data) && visible.length !== data?.length
+  const hrefFor = (id: string) =>
+    withSearch(DOCUMENT_LIST.viewerPath(id), search)
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -88,42 +93,28 @@ export function DocumentLibrary() {
         </Button>
       </header>
 
+      {!isNarrowed(state) && <RecentlyOpened />}
+
       <div className="flex flex-col gap-3">
         <ListToolbar
-          query={query}
-          onQueryChange={setQuery}
+          query={state.query}
+          onQueryChange={(query) => update({ query })}
           placeholder="タイトル・カテゴリ・タグで検索"
           searchLabel="ドキュメントを検索"
           view={view}
           onViewChange={setView}
         />
 
-        {categories.length > 0 && (
-          <div
-            role="group"
-            aria-label="カテゴリで絞り込み"
-            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
-          >
-            {[ALL, ...categories].map((value) => {
-              const active = category === value
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setCategory(value)}
-                  className={cn(
-                    "shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors",
-                    active
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-foreground hover:bg-accent",
-                  )}
-                >
-                  {value === ALL ? "すべて" : value}
-                </button>
-              )
-            })}
-          </div>
+        {data && data.length > 0 && (
+          <FilterChips
+            values={categories}
+            value={state.filter}
+            onValueChange={(filter) => update({ filter })}
+            groupLabel="カテゴリで絞り込み"
+            unreadCount={unreadCount}
+            unreadOnly={state.unreadOnly}
+            onUnreadOnlyChange={(unreadOnly) => update({ unreadOnly })}
+          />
         )}
       </div>
 
@@ -185,7 +176,9 @@ export function DocumentLibrary() {
             </EmptyMedia>
             <EmptyTitle>一致するドキュメントがありません</EmptyTitle>
             <EmptyDescription>
-              検索語やカテゴリを変えてみてください。
+              {state.unreadOnly
+                ? "未読のドキュメントはありません。「未読のみ」を外すとすべて表示されます。"
+                : "検索語やカテゴリを変えてみてください。"}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -195,7 +188,11 @@ export function DocumentLibrary() {
         <ul className="divide-y overflow-hidden rounded-xl border bg-card">
           {visible.map((document) => (
             <li key={document.id}>
-              <DocumentRow document={document} />
+              <DocumentRow
+                document={document}
+                href={hrefFor(document.id)}
+                unread={isItemUnread(document, history, DOCUMENT_LIST)}
+              />
             </li>
           ))}
         </ul>
@@ -205,7 +202,11 @@ export function DocumentLibrary() {
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((document) => (
             <li key={document.id} className="min-w-0">
-              <DocumentCard document={document} />
+              <DocumentCard
+                document={document}
+                href={hrefFor(document.id)}
+                unread={isItemUnread(document, history, DOCUMENT_LIST)}
+              />
             </li>
           ))}
         </ul>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo } from "react"
 import { AlertCircle, RefreshCcw } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -21,17 +21,21 @@ import {
   type CollectionCardItem,
 } from "@/components/collection-card"
 import {
+  FilterChips,
   ListRowsSkeleton,
   ListToolbar,
-  matchesQuery,
   useListView,
 } from "@/components/list-toolbar"
-
-const ALL = "__all__"
+import { useListState } from "@/hooks/use-list-state"
+import { collectionDescriptor } from "@/lib/collections/collection-descriptor"
+import { filterList, isItemUnread } from "@/lib/list-filter"
+import { withSearch } from "@/lib/list-state"
+import { startReadingHistory, useReadingHistory } from "@/lib/reading-history"
 
 /**
- * A dated collection as a page: newest first, searchable, filtered by tag,
- * shown as dense rows or as cards.
+ * A dated collection as a page: newest first, searchable, filtered by tag
+ * and by 未読, shown as dense rows or as cards. The filters live in the URL
+ * (`useListState`) so the viewer can return to them and step through them.
  *
  * Read-only by design. Items are registered through the collection's API, so
  * there is no form here. Shared by the news feed and the English material,
@@ -70,9 +74,15 @@ export function CollectionFeed<T extends CollectionCardItem>({
   /** Shown under the error when the store is not configured yet. */
   setupHint?: React.ReactNode
 }) {
-  const [tag, setTag] = useState(ALL)
-  const [query, setQuery] = useState("")
+  const { state, search, update } = useListState("tag")
   const [view, setView] = useListView(heading)
+  const history = useReadingHistory()
+  const descriptor = useMemo(
+    () => collectionDescriptor<T>(itemHref),
+    [itemHref],
+  )
+
+  useEffect(() => startReadingHistory(), [])
 
   const tags = useMemo(() => {
     const set = new Set<string>()
@@ -85,15 +95,17 @@ export function CollectionFeed<T extends CollectionCardItem>({
   // Filtering happens here rather than by refetching with `?tag=`: the list
   // is already in memory and a chip should feel instant.
   const visible = useMemo(
+    () => filterList(items ?? [], state, history, descriptor),
+    [items, state, history, descriptor],
+  )
+  const unreadCount = useMemo(
     () =>
-      (items ?? []).filter(
-        (item) =>
-          (tag === ALL || item.tags.includes(tag)) &&
-          matchesQuery([item.title, item.category, ...item.tags], query),
-      ),
-    [items, tag, query],
+      (items ?? []).filter((item) => isItemUnread(item, history, descriptor))
+        .length,
+    [items, history, descriptor],
   )
   const filtered = Boolean(items) && visible.length !== items?.length
+  const hrefFor = (id: string) => withSearch(itemHref(id), search)
 
   const Icon = icon
 
@@ -109,40 +121,24 @@ export function CollectionFeed<T extends CollectionCardItem>({
 
       <div className="flex flex-col gap-3">
         <ListToolbar
-          query={query}
-          onQueryChange={setQuery}
+          query={state.query}
+          onQueryChange={(query) => update({ query })}
           placeholder="タイトル・カテゴリ・タグで検索"
           searchLabel={`${heading}を検索`}
           view={view}
           onViewChange={setView}
         />
 
-        {tags.length > 0 && (
-          <div
-            role="group"
-            aria-label="タグで絞り込み"
-            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
-          >
-            {[ALL, ...tags].map((value) => {
-              const active = tag === value
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setTag(value)}
-                  className={cn(
-                    "shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors",
-                    active
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-foreground hover:bg-accent",
-                  )}
-                >
-                  {value === ALL ? "すべて" : value}
-                </button>
-              )
-            })}
-          </div>
+        {items && items.length > 0 && (
+          <FilterChips
+            values={tags}
+            value={state.filter}
+            onValueChange={(filter) => update({ filter })}
+            groupLabel="タグで絞り込み"
+            unreadCount={unreadCount}
+            unreadOnly={state.unreadOnly}
+            onUnreadOnlyChange={(unreadOnly) => update({ unreadOnly })}
+          />
         )}
       </div>
 
@@ -197,7 +193,9 @@ export function CollectionFeed<T extends CollectionCardItem>({
           <EmptyHeader>
             <EmptyTitle>一致する項目がありません</EmptyTitle>
             <EmptyDescription>
-              検索語やタグを変えてみてください。
+              {state.unreadOnly
+                ? "未読の項目はありません。「未読のみ」を外すとすべて表示されます。"
+                : "検索語やタグを変えてみてください。"}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -207,7 +205,12 @@ export function CollectionFeed<T extends CollectionCardItem>({
         <ul className="divide-y overflow-hidden rounded-xl border bg-card">
           {visible.map((item) => (
             <li key={item.id}>
-              <CollectionRow item={item} href={itemHref(item.id)} icon={icon} />
+              <CollectionRow
+                item={item}
+                href={hrefFor(item.id)}
+                icon={icon}
+                unread={isItemUnread(item, history, descriptor)}
+              />
             </li>
           ))}
         </ul>
@@ -219,8 +222,9 @@ export function CollectionFeed<T extends CollectionCardItem>({
             <li key={item.id}>
               <CollectionCard
                 item={item}
-                href={itemHref(item.id)}
+                href={hrefFor(item.id)}
                 icon={icon}
+                unread={isItemUnread(item, history, descriptor)}
               />
             </li>
           ))}

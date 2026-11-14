@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { FileWarning, FileText } from "lucide-react"
 
+import { UnreadDot } from "@/components/list-toolbar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -15,7 +16,17 @@ const DATE_FORMAT = new Intl.DateTimeFormat("ja-JP", {
   day: "numeric",
 })
 
-export function DocumentCard({ document }: { document: DocumentDto }) {
+export function DocumentCard({
+  document,
+  href = documentViewerPath(document.id),
+  unread = false,
+}: {
+  document: DocumentDto
+  /** The viewer link; carries the list's search so 戻る comes back to it. */
+  href?: string
+  /** Not opened yet — see `@/lib/reading-history`. */
+  unread?: boolean
+}) {
   const Icon = document.hasFile ? FileText : FileWarning
 
   const body = (
@@ -41,6 +52,9 @@ export function DocumentCard({ document }: { document: DocumentDto }) {
           </div>
           <div className="min-w-0 flex-1 pr-8">
             <h3 className="line-clamp-2 leading-snug font-semibold text-balance">
+              {unread && (
+                <UnreadDot className="mr-2 inline-block align-middle" />
+              )}
               {document.title}
             </h3>
             {!document.hasFile && (
@@ -78,7 +92,7 @@ export function DocumentCard({ document }: { document: DocumentDto }) {
     <div className="relative h-full">
       {document.hasFile ? (
         <Link
-          href={documentViewerPath(document.id)}
+          href={href}
           className="block h-full rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           aria-label={`${document.title} を開く`}
         >
@@ -105,7 +119,17 @@ export function DocumentCard({ document }: { document: DocumentDto }) {
  * title gets the width. The menu sits beside the link for the same reason as
  * on the card: a button inside an <a> is invalid and fights the navigation.
  */
-export function DocumentRow({ document }: { document: DocumentDto }) {
+export function DocumentRow({
+  document,
+  href = documentViewerPath(document.id),
+  unread = false,
+}: {
+  document: DocumentDto
+  /** The viewer link; carries the list's search so 戻る comes back to it. */
+  href?: string
+  /** Not opened yet — see `@/lib/reading-history`. */
+  unread?: boolean
+}) {
   const Icon = document.hasFile ? FileText : FileWarning
 
   const body = (
@@ -122,7 +146,13 @@ export function DocumentRow({ document }: { document: DocumentDto }) {
         )}
         aria-hidden="true"
       />
-      <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
+      {unread && <UnreadDot />}
+      <h3
+        className={cn(
+          "min-w-0 flex-1 truncate text-sm",
+          unread ? "font-semibold" : "font-medium",
+        )}
+      >
         {document.title}
         {!document.hasFile && (
           <span className="ml-2 text-xs font-normal text-muted-foreground">
@@ -150,7 +180,7 @@ export function DocumentRow({ document }: { document: DocumentDto }) {
     >
       {document.hasFile ? (
         <Link
-          href={documentViewerPath(document.id)}
+          href={href}
           className="flex min-w-0 flex-1 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
           aria-label={`${document.title} を開く`}
         >

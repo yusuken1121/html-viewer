@@ -9,6 +9,8 @@ import {
   type DeleteDocumentInput,
   type UpdateDocumentInput,
 } from "./docs.api"
+import { forgetReading } from "@/lib/reading-history"
+import { documentViewerPath } from "../docs.config"
 import type { DeletedDocumentDto, DocumentDto } from "../docs.schema"
 
 export const docsKeys = {
@@ -108,6 +110,8 @@ export function useDeleteDocument(
             : current,
       )
       queryClient.removeQueries({ queryKey: docsKeys.detail(data.id) })
+      // 最近開いたもの would otherwise keep linking to a page that is gone.
+      forgetReading(documentViewerPath(data.id))
       void queryClient.invalidateQueries({ queryKey: docsKeys.list() })
       options?.onSuccess?.(data, variables, onMutateResult, context)
     },
