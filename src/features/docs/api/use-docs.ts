@@ -9,7 +9,9 @@ import {
   type DeleteDocumentInput,
   type UpdateDocumentInput,
 } from "./docs.api"
+import { usePinMutation } from "@/lib/pin-mutation"
 import { forgetReading } from "@/lib/reading-history"
+import { readUploadKey } from "@/lib/write-key.storage"
 import { documentViewerPath } from "../docs.config"
 import type { DeletedDocumentDto, DocumentDto } from "../docs.schema"
 
@@ -115,5 +117,19 @@ export function useDeleteDocument(
       void queryClient.invalidateQueries({ queryKey: docsKeys.list() })
       options?.onSuccess?.(data, variables, onMutateResult, context)
     },
+  })
+}
+
+/** Pin or unpin a document; see `usePinMutation`. */
+export function usePinDocument() {
+  return usePinMutation<DocumentDto>({
+    listKey: docsKeys.list(),
+    detailKey: docsKeys.detail,
+    send: ({ id, pinned }) =>
+      docsApi.update({
+        id,
+        changes: { pinned },
+        uploadKey: readUploadKey() || undefined,
+      }),
   })
 }

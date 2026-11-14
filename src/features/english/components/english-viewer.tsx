@@ -3,7 +3,11 @@
 import { HtmlFrameViewer } from "@/components/html-frame-viewer"
 import { useViewerNavigation } from "@/hooks/use-viewer-navigation"
 import { collectionDescriptor } from "@/lib/collections/collection-descriptor"
-import { useEnglish, useEnglishItem } from "../api/use-english"
+import {
+  useEnglish,
+  useEnglishItem,
+  usePinEnglishItem,
+} from "../api/use-english"
 import {
   ENGLISH_LABEL,
   ENGLISH_PATH,
@@ -16,6 +20,7 @@ const DESCRIPTOR = collectionDescriptor(englishViewerPath)
 export function EnglishViewer({ id }: { id: string }) {
   const { data, isPending, isError, error } = useEnglishItem(id)
   // The feed is usually cached already; it is what 前へ／次へ walk through.
+  const pin = usePinEnglishItem()
   const { data: items } = useEnglish()
   const { backHref, navigation } = useViewerNavigation({
     items,
@@ -38,6 +43,15 @@ export function EnglishViewer({ id }: { id: string }) {
       sourceUrl={data?.sourceUrl}
       reading={{ key: englishViewerPath(id), label: ENGLISH_LABEL }}
       navigation={navigation}
+      pin={
+        data
+          ? {
+              pinned: data.pinned,
+              onToggle: () => pin.mutate({ id, pinned: !data.pinned }),
+              pending: pin.isPending,
+            }
+          : undefined
+      }
     />
   )
 }

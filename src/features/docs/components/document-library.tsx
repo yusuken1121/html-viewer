@@ -26,6 +26,7 @@ import { PATH } from "@/constants/path"
 import { useListState } from "@/hooks/use-list-state"
 import { filterList, isItemUnread } from "@/lib/list-filter"
 import { isNarrowed, withSearch } from "@/lib/list-state"
+import { useSavePinnedOffline } from "@/lib/offline"
 import { startReadingHistory, useReadingHistory } from "@/lib/reading-history"
 import { cn } from "@/lib/utils"
 import { useDocuments } from "../api/use-docs"
@@ -49,6 +50,7 @@ export function DocumentLibrary() {
   const history = useReadingHistory()
 
   useEffect(() => startReadingHistory(), [])
+  useSavePinnedOffline(data, DOCUMENT_LIST.viewerPath)
 
   const categories = useMemo(() => {
     const set = new Set<string>()

@@ -4,7 +4,7 @@ import Link from "next/link"
 import { FileText, FileWarning } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
-import { UnreadDot } from "@/components/list-toolbar"
+import { PinMark, UnreadDot } from "@/components/list-toolbar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -23,6 +23,8 @@ export type CollectionCardItem = {
   tags: string[]
   publishedAt: string
   hasFile: boolean
+  pinned: boolean
+  contentUrl: string
 }
 
 /**
@@ -72,6 +74,7 @@ export function CollectionCard({
           <div className="flex items-start justify-between gap-3">
             <h2 className="flex items-center gap-2 leading-snug font-semibold text-balance">
               {unread && <UnreadDot />}
+              {item.pinned && <PinMark />}
               {item.title}
             </h2>
             <time
@@ -156,6 +159,7 @@ export function CollectionRow({
         aria-hidden="true"
       />
       {unread && <UnreadDot />}
+      {item.pinned && <PinMark />}
       <h2
         className={cn(
           "min-w-0 flex-1 truncate text-sm",

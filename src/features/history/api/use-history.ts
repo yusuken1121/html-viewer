@@ -8,3 +8,4 @@ const hooks = createCollectionHooks("history", HISTORY_ENDPOINT)
 export const historyKeys = hooks.keys
 export const useHistory = hooks.useCollection
 export const useHistoryItem = hooks.useCollectionItem
+export const usePinHistoryItem = hooks.usePinItem

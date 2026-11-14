@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useSyncExternalStore } from "react"
-import { LayoutGrid, List, Search } from "lucide-react"
+import { LayoutGrid, List, Pin, Search } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -210,6 +210,17 @@ export function UnreadDot({ className }: { className?: string }) {
       className={cn("size-2 shrink-0 rounded-full bg-primary", className)}
       role="img"
       aria-label="未読"
+    />
+  )
+}
+
+/** Marks a pinned item, with its meaning for screen readers. */
+export function PinMark({ className }: { className?: string }) {
+  return (
+    <Pin
+      className={cn("size-3.5 shrink-0 fill-current text-amber-500", className)}
+      role="img"
+      aria-label="ピン留め"
     />
   )
 }

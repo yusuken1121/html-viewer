@@ -111,3 +111,39 @@ test("a document can be deleted, and confirmation is required first", async ({
   await page.reload()
   await expect(card("消す予定のノート")(page)).toHaveCount(0)
 })
+
+/**
+ * The pins of the folder store live in one file beside the documents
+ * (`.pinned.json`, git-ignored). Only this test pins, and it unpins at the
+ * end, so no shared clean-up touches that file while another worker runs.
+ */
+test("a pinned document leads the library and keeps its pin", async ({
+  page,
+}) => {
+  await upload(page, "pin", "試験前に見返すノート")
+
+  await page.goto("/")
+  const menu = page.getByRole("button", { name: "試験前に見返すノート の操作" })
+  await menu.click()
+  await page.getByRole("menuitem", { name: "ピン留めする" }).click()
+
+  const first = page.getByRole("heading", { level: 3 }).first()
+  await expect(first).toHaveText("試験前に見返すノート")
+  const row = page.getByRole("link", { name: "試験前に見返すノート を開く" })
+  await expect(row.getByRole("img", { name: "ピン留め" })).toBeVisible()
+
+  // It reached the store, and the viewer shows the pin pressed.
+  await page.reload()
+  await expect(row.getByRole("img", { name: "ピン留め" })).toBeVisible()
+  await row.click()
+  await expect(
+    page.getByRole("button", { name: "ピン留めを外す" }),
+  ).toHaveAttribute("aria-pressed", "true")
+
+  await page.getByRole("button", { name: "ピン留めを外す" }).click()
+  await expect(
+    page.getByRole("button", { name: "ピン留めする" }),
+  ).toHaveAttribute("aria-pressed", "false")
+  await page.getByRole("link", { name: "ライブラリへ戻る" }).click()
+  await expect(row.getByRole("img", { name: "ピン留め" })).toHaveCount(0)
+})

@@ -35,6 +35,7 @@ export function createHistoryNotionConfig(): NotionCollectionConfig {
       file: optionalEnv("NOTION_HISTORY_FILE_PROPERTY", "File"),
       category: optionalEnv("NOTION_HISTORY_CATEGORY_PROPERTY", "Category"),
       tags: optionalEnv("NOTION_HISTORY_TAGS_PROPERTY", "Tags"),
+      pinned: optionalEnv("NOTION_HISTORY_PINNED_PROPERTY", "Pinned"),
       ...(publishedAt ? { publishedAt } : {}),
     },
   }

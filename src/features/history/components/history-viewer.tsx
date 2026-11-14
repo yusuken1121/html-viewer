@@ -3,7 +3,11 @@
 import { HtmlFrameViewer } from "@/components/html-frame-viewer"
 import { useViewerNavigation } from "@/hooks/use-viewer-navigation"
 import { collectionDescriptor } from "@/lib/collections/collection-descriptor"
-import { useHistory, useHistoryItem } from "../api/use-history"
+import {
+  useHistory,
+  useHistoryItem,
+  usePinHistoryItem,
+} from "../api/use-history"
 import {
   HISTORY_LABEL,
   HISTORY_PATH,
@@ -16,6 +20,7 @@ const DESCRIPTOR = collectionDescriptor(historyViewerPath)
 export function HistoryViewer({ id }: { id: string }) {
   const { data, isPending, isError, error } = useHistoryItem(id)
   // The feed is usually cached already; it is what 前へ／次へ walk through.
+  const pin = usePinHistoryItem()
   const { data: items } = useHistory()
   const { backHref, navigation } = useViewerNavigation({
     items,
@@ -38,6 +43,15 @@ export function HistoryViewer({ id }: { id: string }) {
       sourceUrl={data?.sourceUrl}
       reading={{ key: historyViewerPath(id), label: HISTORY_LABEL }}
       navigation={navigation}
+      pin={
+        data
+          ? {
+              pinned: data.pinned,
+              onToggle: () => pin.mutate({ id, pinned: !data.pinned }),
+              pending: pin.isPending,
+            }
+          : undefined
+      }
     />
   )
 }

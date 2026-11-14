@@ -9,7 +9,7 @@ afterEach(() => {
 })
 
 describe("createNewsNotionConfig", () => {
-  it("maps the same four columns as the AWS/docs database", () => {
+  it("maps the AWS/docs database's four columns, plus Pinned", () => {
     process.env.NOTION_NEWS_DATABASE_ID = "3e09a12e522180b88fbada101d3f78ab"
 
     expect(createNewsNotionConfig()).toEqual({
@@ -20,6 +20,7 @@ describe("createNewsNotionConfig", () => {
         file: "File",
         category: "Category",
         tags: "Tags",
+        pinned: "Pinned",
       },
     })
   })

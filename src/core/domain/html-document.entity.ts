@@ -26,6 +26,8 @@ export interface HtmlDocument {
   fileName: string | null
   /** Where to edit the record (the Notion page), when the store has one. */
   sourceUrl: string | null
+  /** Kept at the top of the list — the few documents being reviewed now. */
+  pinned: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -56,6 +58,7 @@ export interface DocumentUpdate {
   title?: string
   category?: string | null
   tags?: string[]
+  pinned?: boolean
 }
 
 export { extractHtmlTitle }
@@ -193,6 +196,7 @@ export function isEmptyDocumentUpdate(update: DocumentUpdate): boolean {
   return (
     update.title === undefined &&
     update.category === undefined &&
-    update.tags === undefined
+    update.tags === undefined &&
+    update.pinned === undefined
   )
 }

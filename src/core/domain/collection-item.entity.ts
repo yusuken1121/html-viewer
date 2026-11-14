@@ -27,6 +27,8 @@ export interface CollectionItem {
   fileName: string | null
   /** Where to edit the record (the Notion page), when the store has one. */
   sourceUrl: string | null
+  /** Kept at the top of the list, above the newest. */
+  pinned: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -58,6 +60,7 @@ export interface CollectionItemUpdate {
   category?: string | null
   tags?: string[]
   publishedAt?: Date
+  pinned?: boolean
 }
 
 export const MAX_ITEM_TITLE_LENGTH = 200
@@ -173,6 +176,7 @@ export function isEmptyItemUpdate(update: CollectionItemUpdate): boolean {
     update.title === undefined &&
     update.category === undefined &&
     update.tags === undefined &&
-    update.publishedAt === undefined
+    update.publishedAt === undefined &&
+    update.pinned === undefined
   )
 }

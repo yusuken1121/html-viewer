@@ -21,6 +21,7 @@ export const collectionItemDtoSchema = z.object({
   hasFile: z.boolean(),
   fileName: z.string().nullable(),
   sourceUrl: z.string().nullable(),
+  pinned: z.boolean(),
   /** Ready to drop into an iframe `src`. Includes a cache-busting version. */
   contentUrl: z.string(),
   createdAt: z.string(),
@@ -55,6 +56,7 @@ export function toCollectionItemDto(
     hasFile: item.hasFile,
     fileName: item.fileName,
     sourceUrl: item.sourceUrl,
+    pinned: item.pinned,
     contentUrl: contentPath(item.id, String(item.updatedAt.getTime())),
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
@@ -111,6 +113,7 @@ export const updateItemSchema = z
     category: categoryField.nullable().optional(),
     tags: tagsField.optional(),
     publishedAt: publishedAtField.optional(),
+    pinned: z.boolean().optional(),
   })
   .refine(
     (value) => Object.values(value).some((field) => field !== undefined),

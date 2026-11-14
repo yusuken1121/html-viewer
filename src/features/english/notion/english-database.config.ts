@@ -35,6 +35,7 @@ export function createEnglishNotionConfig(): NotionCollectionConfig {
       file: optionalEnv("NOTION_ENGLISH_FILE_PROPERTY", "File"),
       category: optionalEnv("NOTION_ENGLISH_CATEGORY_PROPERTY", "Category"),
       tags: optionalEnv("NOTION_ENGLISH_TAGS_PROPERTY", "Tags"),
+      pinned: optionalEnv("NOTION_ENGLISH_PINNED_PROPERTY", "Pinned"),
       ...(publishedAt ? { publishedAt } : {}),
     },
   }

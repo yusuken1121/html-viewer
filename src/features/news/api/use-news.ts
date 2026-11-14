@@ -8,3 +8,4 @@ const hooks = createCollectionHooks("news", NEWS_ENDPOINT)
 export const newsKeys = hooks.keys
 export const useNews = hooks.useCollection
 export const useNewsItem = hooks.useCollectionItem
+export const usePinNewsItem = hooks.usePinItem

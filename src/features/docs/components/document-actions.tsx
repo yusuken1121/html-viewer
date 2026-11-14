@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { MoreVertical, Pencil, Trash2 } from "lucide-react"
+import { MoreVertical, Pencil, Pin, PinOff, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { usePinDocument } from "../api/use-docs"
 import type { DocumentDto } from "../docs.schema"
 import { DocumentDeleteDialog } from "./document-delete-dialog"
 import { DocumentEditDialog } from "./document-edit-dialog"
@@ -33,6 +34,7 @@ export function DocumentActions({
 }) {
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const pin = usePinDocument()
 
   return (
     <>
@@ -48,6 +50,18 @@ export function DocumentActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onSelect={() =>
+              pin.mutate({ id: document.id, pinned: !document.pinned })
+            }
+          >
+            {document.pinned ? (
+              <PinOff className="size-4" aria-hidden="true" />
+            ) : (
+              <Pin className="size-4" aria-hidden="true" />
+            )}
+            {document.pinned ? "ピン留めを外す" : "ピン留めする"}
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setEditing(true)}>
             <Pencil className="size-4" aria-hidden="true" />
             編集

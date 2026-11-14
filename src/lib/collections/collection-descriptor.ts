@@ -6,6 +6,7 @@ type CollectionListItem = {
   category: string | null
   tags: readonly string[]
   publishedAt: string
+  pinned: boolean
 }
 
 /**
@@ -21,5 +22,6 @@ export function collectionDescriptor<T extends CollectionListItem>(
     fields: (item) => [item.title, item.category, ...item.tags],
     filterValues: (item) => item.tags,
     date: (item) => item.publishedAt,
+    pinned: (item) => item.pinned,
   }
 }

@@ -17,6 +17,7 @@ export const DOCUMENT_LIST: ListItemDescriptor<DocumentDto> = {
   ],
   filterValues: (document) => [document.category],
   date: (document) => document.createdAt,
+  pinned: (document) => document.pinned,
 }
 
 /** Shown as the reading-history label, e.g. under 最近開いたもの. */

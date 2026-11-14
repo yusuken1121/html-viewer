@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>オフライン | HTML Viewer</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --fg: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --accent: #4f46e5;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0a0a0a;
+          --fg: #f1f5f9;
+          --muted: #94a3b8;
+          --border: #27272a;
+          --accent: #818cf8;
+        }
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        box-sizing: border-box;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          system-ui,
+          -apple-system,
+          "Hiragino Sans",
+          sans-serif;
+        text-align: center;
+      }
+      main {
+        max-width: 28rem;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 16px 0 8px;
+      }
+      p {
+        color: var(--muted);
+        line-height: 1.7;
+        margin: 0 0 24px;
+      }
+      a {
+        display: inline-block;
+        padding: 10px 20px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icons/icon-192.png" width="64" height="64" alt="" />
+      <h1>オフラインです</h1>
+      <p>
+        このページはまだこの端末に保存されていません。<br />
+        一度開いた資料と、ピン留めした資料はオフラインでも読めます。
+      </p>
+      <a href="/">ライブラリへ</a>
+    </main>
+  </body>
+</html>

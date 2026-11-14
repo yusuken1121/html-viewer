@@ -13,6 +13,7 @@ export const documentDtoSchema = z.object({
   hasFile: z.boolean(),
   fileName: z.string().nullable(),
   sourceUrl: z.string().nullable(),
+  pinned: z.boolean(),
   /** Ready to drop into an iframe `src`. Includes a cache-busting version. */
   contentUrl: z.string(),
   createdAt: z.string(),
@@ -39,6 +40,7 @@ export function toDocumentDto(document: HtmlDocument): DocumentDto {
     hasFile: document.hasFile,
     fileName: document.fileName,
     sourceUrl: document.sourceUrl,
+    pinned: document.pinned,
     contentUrl: documentContentPath(
       document.id,
       String(document.updatedAt.getTime()),
@@ -84,12 +86,14 @@ export const updateDocumentSchema = z
     title: z.string().max(200).optional(),
     category: z.string().max(50).nullable().optional(),
     tags: z.array(z.string().max(50)).max(20).optional(),
+    pinned: z.boolean().optional(),
   })
   .refine(
     (value) =>
       value.title !== undefined ||
       value.category !== undefined ||
-      value.tags !== undefined,
+      value.tags !== undefined ||
+      value.pinned !== undefined,
     { message: "変更する項目がありません" },
   )
 

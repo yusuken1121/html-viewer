@@ -29,6 +29,8 @@ type StoredItem = {
   category: string | null
   tags: string[]
   publishedAt: string
+  /** Absent in files written before pinning existed. */
+  pinned?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -44,6 +46,7 @@ function toItem(stored: StoredItem): CollectionItem {
     fileName: stored.fileName,
     // Nothing to link to: a JSON file has no page to open.
     sourceUrl: null,
+    pinned: stored.pinned === true,
     createdAt: new Date(stored.createdAt),
     updatedAt: new Date(stored.updatedAt),
   }
@@ -118,6 +121,7 @@ export class LocalCollectionRepository implements ICollectionRepository {
       ...(changes.publishedAt !== undefined
         ? { publishedAt: changes.publishedAt.toISOString() }
         : {}),
+      ...(changes.pinned !== undefined ? { pinned: changes.pinned } : {}),
       updatedAt: new Date().toISOString(),
     }
 

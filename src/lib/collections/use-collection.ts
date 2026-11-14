@@ -1,7 +1,8 @@
 "use client"
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { apiGet } from "@/lib/api/api-client"
+import { apiGet, apiPatch } from "@/lib/api/api-client"
+import { usePinMutation, writeKeyHeaders } from "@/lib/pin-mutation"
 import { collectionItemPath } from "./collection.config"
 import type { CollectionItemDto, CollectionListDto } from "./collection.schema"
 
@@ -13,10 +14,10 @@ export type ListParams = {
 /**
  * React Query hooks for one collection.
  *
- * Read side only: registering, editing and deleting go through the API
- * directly from whatever automation owns the collection, so there is
- * deliberately no browser wrapper for them — adding one would imply a UI that
- * does not exist.
+ * Read side, plus the pin: registering, editing and deleting go through the
+ * API directly from whatever automation owns the collection, so there is
+ * deliberately no browser wrapper for them. Pinning is the one write a
+ * reader makes, from the viewer.
  */
 export function createCollectionHooks(name: string, endpoint: string) {
   const keys = {
@@ -69,5 +70,19 @@ export function createCollectionHooks(name: string, endpoint: string) {
     })
   }
 
-  return { keys, useCollection, useCollectionItem }
+  /** Pin or unpin an item; see `usePinMutation`. */
+  function usePinItem() {
+    return usePinMutation<CollectionItemDto>({
+      listKey: keys.list(),
+      detailKey: keys.detail,
+      send: ({ id, pinned }) =>
+        apiPatch<CollectionItemDto, { pinned: boolean }>(
+          collectionItemPath(endpoint, id),
+          { pinned },
+          writeKeyHeaders(),
+        ),
+    })
+  }
+
+  return { keys, useCollection, useCollectionItem, usePinItem }
 }

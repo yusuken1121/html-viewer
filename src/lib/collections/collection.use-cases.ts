@@ -124,6 +124,7 @@ export type UpdateItemInput = {
   category?: string | null
   tags?: string[]
   publishedAt?: string
+  pinned?: boolean
 }
 
 /**
@@ -141,6 +142,9 @@ export class UpdateCollectionItemUseCase {
 
     const changes = normalizeUpdate(input)
     assertValidItemUpdate(changes)
+
+    // Pinning what is already pinned is not a change: skip the write.
+    if (changes.pinned === existing.pinned) delete changes.pinned
 
     if (isEmptyItemUpdate(changes)) return existing
 
@@ -193,5 +197,6 @@ function normalizeUpdate(input: UpdateItemInput): CollectionItemUpdate {
     changes.publishedAt = new Date(input.publishedAt)
   }
 
+  if (input.pinned !== undefined) changes.pinned = input.pinned
   return changes
 }

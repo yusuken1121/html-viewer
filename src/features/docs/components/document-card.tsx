@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { FileWarning, FileText } from "lucide-react"
 
-import { UnreadDot } from "@/components/list-toolbar"
+import { PinMark, UnreadDot } from "@/components/list-toolbar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -54,6 +54,9 @@ export function DocumentCard({
             <h3 className="line-clamp-2 leading-snug font-semibold text-balance">
               {unread && (
                 <UnreadDot className="mr-2 inline-block align-middle" />
+              )}
+              {document.pinned && (
+                <PinMark className="mr-1.5 inline-block align-[-2px]" />
               )}
               {document.title}
             </h3>
@@ -147,6 +150,7 @@ export function DocumentRow({
         aria-hidden="true"
       />
       {unread && <UnreadDot />}
+      {document.pinned && <PinMark />}
       <h3
         className={cn(
           "min-w-0 flex-1 truncate text-sm",

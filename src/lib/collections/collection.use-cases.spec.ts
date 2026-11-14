@@ -36,6 +36,7 @@ function item(id: string, publishedAt: string, hasFile = true): CollectionItem {
     hasFile,
     fileName: hasFile ? `${id}.html` : null,
     sourceUrl: null,
+    pinned: false,
     createdAt: new Date(publishedAt),
     updatedAt: new Date(publishedAt),
   }
@@ -214,6 +215,17 @@ describe("UpdateCollectionItemUseCase", () => {
     })
 
     expect(repo.updated[0]!.changes).toEqual({ category: null, tags: ["S3"] })
+  })
+
+  it("pins an item, and skips a pin that is already in place", async () => {
+    const repo = new FakeRepository(existing)
+    const useCase = new UpdateCollectionItemUseCase(repo)
+
+    await useCase.execute("a", { pinned: false })
+    expect(repo.updated).toHaveLength(0)
+
+    await useCase.execute("a", { pinned: true })
+    expect(repo.updated).toEqual([{ id: "a", changes: { pinned: true } }])
   })
 
   it("does not touch the store when nothing changed", async () => {

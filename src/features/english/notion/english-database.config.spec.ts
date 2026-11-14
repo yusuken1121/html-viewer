@@ -9,7 +9,7 @@ afterEach(() => {
 })
 
 describe("createEnglishNotionConfig", () => {
-  it("maps the same four columns as the AWS/docs database", () => {
+  it("maps the AWS/docs database's four columns, plus Pinned", () => {
     process.env.NOTION_ENGLISH_DATABASE_ID = "3e09a12e52218055bbfdd50560ab1208"
 
     expect(createEnglishNotionConfig()).toEqual({
@@ -20,6 +20,7 @@ describe("createEnglishNotionConfig", () => {
         file: "File",
         category: "Category",
         tags: "Tags",
+        pinned: "Pinned",
       },
     })
   })

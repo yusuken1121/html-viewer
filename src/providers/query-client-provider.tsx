@@ -9,6 +9,9 @@ const QUERY_CLIENT_OPTIONS = {
     queries: {
       staleTime: 60 * 1000,
       refetchOnWindowFocus: false,
+      // Without a connection, still ask: the service worker answers with the
+      // last copy it kept. The default ("online") would wait forever instead.
+      networkMode: "offlineFirst" as const,
     },
   },
 }
