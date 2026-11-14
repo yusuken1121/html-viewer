@@ -28,6 +28,7 @@ function doc(id: string, updatedAt: string, hasFile = true): HtmlDocument {
     hasFile,
     fileName: hasFile ? `${id}.html` : null,
     sourceUrl: null,
+    pinned: false,
     createdAt: new Date(updatedAt),
     updatedAt: new Date(updatedAt),
   }
@@ -202,6 +203,22 @@ describe("UpdateDocumentUseCase", () => {
       category: null,
       tags: ["IAM", "VPC"],
     })
+  })
+
+  it("pins a document", async () => {
+    const repo = new FakeRepository(existing)
+
+    await new UpdateDocumentUseCase(repo).execute("a", { pinned: true })
+
+    expect(repo.updated).toEqual([{ id: "a", changes: { pinned: true } }])
+  })
+
+  it("skips a pin that is already in place, so the sort order holds", async () => {
+    const repo = new FakeRepository(existing)
+
+    await new UpdateDocumentUseCase(repo).execute("a", { pinned: false })
+
+    expect(repo.updated).toHaveLength(0)
   })
 
   it("refuses a title that is only whitespace", async () => {

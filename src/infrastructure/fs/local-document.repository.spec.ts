@@ -67,6 +67,22 @@ describe("LocalDocumentRepository", () => {
     expect(docs[0]).toMatchObject({ hasFile: true, category: null, tags: [] })
   })
 
+  it("keeps pins beside the files, and drops a pin with its file", async () => {
+    const repo = new LocalDocumentRepository(dir)
+
+    expect((await repo.update("vpc", { pinned: true })).pinned).toBe(true)
+    expect((await repo.list()).map((d) => [d.id, d.pinned])).toEqual([
+      ["iam", false],
+      ["vpc", true],
+    ])
+    // The file itself is untouched: its title is still its name.
+    expect((await repo.readContent("vpc"))?.html).toBe("<p>no title</p>")
+
+    await repo.remove("vpc")
+    await writeFile(join(dir, "vpc.htm"), "<p>again</p>")
+    expect((await repo.findById("vpc"))?.pinned).toBe(false)
+  })
+
   it("reads the body by id regardless of extension", async () => {
     const repo = new LocalDocumentRepository(dir)
 

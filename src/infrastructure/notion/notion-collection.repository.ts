@@ -26,6 +26,7 @@ import {
 import { NotionPropertyReader } from "./notion-property.reader"
 import { throttleNotion, withNotionRetry } from "./notion-throttle"
 import { NotionWriteError, isMissingPage } from "./notion-write.error"
+import { ensureCheckboxColumn, readCheckbox } from "./notion-checkbox-column"
 import { UploadTimeoutError } from "@/core/domain/upload-timeout.error"
 import { DomainError } from "@/core/domain/domain.error"
 
@@ -45,6 +46,8 @@ export type NotionCollectionConfig = {
     category?: string
     tags?: string
     publishedAt?: string
+    /** A checkbox; added to the database the first time something is pinned. */
+    pinned?: string
   }
 }
 
@@ -255,6 +258,15 @@ export class NotionCollectionRepository implements ICollectionRepository {
       }
     }
 
+    if (properties.pinned && changes.pinned !== undefined) {
+      await ensureCheckboxColumn(
+        this.client,
+        await this.resolve(),
+        properties.pinned,
+      )
+      pageProperties[properties.pinned] = { checkbox: changes.pinned }
+    }
+
     // Nothing this database can record: report the row as it stands instead
     // of sending an empty PATCH, which would still bump `last_edited_time`.
     if (Object.keys(pageProperties).length === 0) {
@@ -378,6 +390,9 @@ export class NotionCollectionRepository implements ICollectionRepository {
       hasFile: Boolean(first && fileEntryUrl(first)),
       fileName: first?.name ?? null,
       sourceUrl: page.url ?? toNotionPageUrl(page.id),
+      pinned: properties.pinned
+        ? readCheckbox(page.properties[properties.pinned])
+        : false,
       createdAt: new Date(page.created_time),
       updatedAt: new Date(page.last_edited_time),
     }

@@ -65,6 +65,23 @@ const nextConfig: NextConfig = {
         ).join(")(?!")}).*)`,
         headers: securityHeaders,
       },
+      /**
+       * The service worker must be re-checked on every visit, or a deploy
+       * that changes it would wait on a stale copy in the HTTP cache.
+       */
+      {
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+          {
+            key: "Content-Type",
+            value: "application/javascript; charset=utf-8",
+          },
+        ],
+      },
       ...FRAMED_COLLECTIONS.map((name) => ({
         source: `/api/${name}/:id/content`,
         headers: securityHeaders.filter(

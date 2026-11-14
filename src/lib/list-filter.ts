@@ -17,6 +17,8 @@ export type ListItemDescriptor<T> = {
   filterValues: (item: T) => ReadonlyArray<string | null | undefined>
   /** When the item came in, for 未読. */
   date: (item: T) => string
+  /** Pinned items lead the list, in their usual order among themselves. */
+  pinned: (item: T) => boolean
 }
 
 export function isItemUnread<T extends { id: string }>(
@@ -31,6 +33,10 @@ export function isItemUnread<T extends { id: string }>(
   )
 }
 
+/**
+ * The items the list shows, in the order it shows them: what matches the
+ * state, pinned items first. The viewer's 前へ／次へ walk this same order.
+ */
 export function filterList<T extends { id: string }>(
   items: readonly T[],
   state: ListState,
@@ -43,7 +49,7 @@ export function filterList<T extends { id: string }>(
     stillUnread?: (key: string) => boolean
   } = {},
 ): T[] {
-  return items.filter((item) => {
+  const matching = items.filter((item) => {
     if (item.id === options.currentId) return true
     const key = descriptor.viewerPath(item.id)
     return matchesListState(
@@ -57,4 +63,9 @@ export function filterList<T extends { id: string }>(
       state,
     )
   })
+
+  // Array#sort is stable, so each group keeps the store's order.
+  return matching.sort(
+    (a, b) => Number(descriptor.pinned(b)) - Number(descriptor.pinned(a)),
+  )
 }

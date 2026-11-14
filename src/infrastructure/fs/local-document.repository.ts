@@ -30,6 +30,13 @@ const HTML_EXTENSIONS = new Set([".html", ".htm"])
  */
 const TRASH_DIRECTORY = ".trash"
 
+/**
+ * Pinned document ids, as a JSON array. The one piece of metadata a folder
+ * of HTML files can keep: there is no file attribute to put a pin in, and
+ * rewriting the HTML for it would change the file the reader sees.
+ */
+const PINS_FILE = ".pinned.json"
+
 function escapeHtmlText(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
@@ -114,10 +121,11 @@ export class LocalDocumentRepository implements IDocumentRepository {
       throw error
     }
 
+    const pins = await this.readPins()
     const documents = await Promise.all(
       entries
         .filter((name) => HTML_EXTENSIONS.has(extname(name).toLowerCase()))
-        .map((name) => this.describe(name)),
+        .map((name) => this.describe(name, pins)),
     )
 
     return documents
@@ -127,7 +135,7 @@ export class LocalDocumentRepository implements IDocumentRepository {
 
   async findById(id: string): Promise<HtmlDocument | null> {
     const fileName = await this.locate(id)
-    return fileName ? this.describe(fileName) : null
+    return fileName ? this.describe(fileName, await this.readPins()) : null
   }
 
   async readContent(id: string): Promise<DocumentContent | null> {
@@ -159,7 +167,7 @@ export class LocalDocumentRepository implements IDocumentRepository {
       flag: "wx",
     })
 
-    const document = await this.describe(fileName)
+    const document = await this.describe(fileName, new Set())
     if (!document) throw new Error(`Failed to store ${fileName}`)
     // The caller's title wins over whatever <title> the file carries.
     return { ...document, title: input.title }
@@ -191,7 +199,14 @@ export class LocalDocumentRepository implements IDocumentRepository {
       await writeFile(path, withHtmlTitle(html, changes.title), "utf8")
     }
 
-    const document = await this.describe(fileName)
+    if (changes.pinned !== undefined) {
+      const pins = await this.readPins()
+      if (changes.pinned) pins.add(id)
+      else pins.delete(id)
+      await this.writePins(pins)
+    }
+
+    const document = await this.describe(fileName, await this.readPins())
     if (!document) throw new DocumentNotFoundError(id)
     return document
   }
@@ -206,6 +221,32 @@ export class LocalDocumentRepository implements IDocumentRepository {
 
     const stamp = new Date().toISOString().replace(/[:.]/g, "-")
     await rename(join(this.root, fileName), join(trash, `${stamp}-${fileName}`))
+
+    const pins = await this.readPins()
+    if (pins.delete(id)) await this.writePins(pins)
+  }
+
+  /** A missing or unreadable pins file means nothing is pinned. */
+  private async readPins(): Promise<Set<string>> {
+    try {
+      const parsed: unknown = JSON.parse(
+        await readFile(join(this.root, PINS_FILE), "utf8"),
+      )
+      return new Set(
+        Array.isArray(parsed)
+          ? parsed.filter((id): id is string => typeof id === "string")
+          : [],
+      )
+    } catch {
+      return new Set()
+    }
+  }
+
+  private async writePins(pins: Set<string>): Promise<void> {
+    await mkdir(this.root, { recursive: true })
+    const temporary = join(this.root, `.${crypto.randomUUID()}.pins.tmp`)
+    await writeFile(temporary, JSON.stringify([...pins].sort()), "utf8")
+    await rename(temporary, join(this.root, PINS_FILE))
   }
 
   /** Resolve an id back to the file that produced it, if it still exists. */
@@ -224,7 +265,10 @@ export class LocalDocumentRepository implements IDocumentRepository {
     return null
   }
 
-  private async describe(fileName: string): Promise<HtmlDocument | null> {
+  private async describe(
+    fileName: string,
+    pins: ReadonlySet<string>,
+  ): Promise<HtmlDocument | null> {
     const path = join(this.root, fileName)
     const info = await stat(path)
     if (!info.isFile()) return null
@@ -241,6 +285,7 @@ export class LocalDocumentRepository implements IDocumentRepository {
       hasFile: true,
       fileName,
       sourceUrl: null,
+      pinned: pins.has(id),
       createdAt: info.birthtime,
       updatedAt: info.mtime,
     }

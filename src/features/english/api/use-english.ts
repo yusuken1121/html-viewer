@@ -8,3 +8,4 @@ const hooks = createCollectionHooks("english", ENGLISH_ENDPOINT)
 export const englishKeys = hooks.keys
 export const useEnglish = hooks.useCollection
 export const useEnglishItem = hooks.useCollectionItem
+export const usePinEnglishItem = hooks.usePinItem

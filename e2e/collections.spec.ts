@@ -292,6 +292,46 @@ test("the collections are separate stores", async ({ page, request }) => {
 })
 
 test.describe("reading through a collection", () => {
+  test("an item pinned in the viewer leads its list", async ({
+    page,
+    request,
+  }) => {
+    for (const [day, title] of [
+      ["02", "新しい記事"],
+      ["01", "古いけれど大事な記事"],
+    ] as const) {
+      await register(request, "news", {
+        fileName: `pin-${day}.html`,
+        html: HTML(title, title),
+        publishedAt: `2026-01-${day}T09:00:00Z`,
+      })
+    }
+
+    await page.goto("/news")
+    await expect(page.getByRole("heading", { level: 2 }).nth(0)).toHaveText(
+      "新しい記事",
+    )
+
+    await page
+      .getByRole("link", { name: "古いけれど大事な記事 を開く" })
+      .click()
+    await page.getByRole("button", { name: "ピン留めする" }).click()
+    await expect(
+      page.getByRole("button", { name: "ピン留めを外す" }),
+    ).toBeVisible()
+
+    await page.getByRole("link", { name: "ニュースへ戻る" }).click()
+    await expect(page.getByRole("heading", { level: 2 }).nth(0)).toHaveText(
+      "古いけれど大事な記事",
+    )
+    await page.reload()
+    await expect(
+      page
+        .getByRole("link", { name: "古いけれど大事な記事 を開く" })
+        .getByRole("img", { name: "ピン留め" }),
+    ).toBeVisible()
+  })
+
   test("前へ／次へ step through the list in its order, keeping the filter", async ({
     page,
     request,

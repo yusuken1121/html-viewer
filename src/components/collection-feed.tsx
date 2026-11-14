@@ -30,6 +30,7 @@ import { useListState } from "@/hooks/use-list-state"
 import { collectionDescriptor } from "@/lib/collections/collection-descriptor"
 import { filterList, isItemUnread } from "@/lib/list-filter"
 import { withSearch } from "@/lib/list-state"
+import { useSavePinnedOffline } from "@/lib/offline"
 import { startReadingHistory, useReadingHistory } from "@/lib/reading-history"
 
 /**
@@ -83,6 +84,7 @@ export function CollectionFeed<T extends CollectionCardItem>({
   )
 
   useEffect(() => startReadingHistory(), [])
+  useSavePinnedOffline(items, itemHref)
 
   const tags = useMemo(() => {
     const set = new Set<string>()

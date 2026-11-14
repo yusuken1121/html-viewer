@@ -6,6 +6,7 @@ import {
   type NotionCollectionConfig,
 } from "./notion-collection.repository"
 import { resetNotionThrottle } from "./notion-throttle"
+import { resetKnownColumns } from "./notion-checkbox-column"
 
 const CONFIG: NotionCollectionConfig = {
   databaseId: "db-news",
@@ -361,6 +362,73 @@ describe("NotionCollectionRepository.update", () => {
       Category: { select: null },
       Tags: { multi_select: [] },
     })
+  })
+
+  it("adds the Pinned checkbox column the first time, then pins", async () => {
+    resetKnownColumns()
+    const update = vi.fn().mockResolvedValue(
+      page({
+        properties: { ...page().properties, Pinned: { checkbox: true } },
+      }),
+    )
+    const retrieve = vi.fn().mockResolvedValue(schema(["Name", "File"]))
+    const addColumn = vi.fn().mockResolvedValue({})
+    const client = {
+      pages: { update },
+      dataSources: { retrieve, update: addColumn },
+    } as unknown as Client
+    const repo = new NotionCollectionRepository(
+      { ...CONFIG, properties: { ...CONFIG.properties, pinned: "Pinned" } },
+      client,
+    )
+
+    const item = await repo.update("news-1", { pinned: true })
+
+    expect(addColumn).toHaveBeenCalledWith({
+      data_source_id: "ds-news",
+      properties: { Pinned: { checkbox: {} } },
+    })
+    expect(update.mock.calls[0]![0].properties).toEqual({
+      Pinned: { checkbox: true },
+    })
+    expect(item.pinned).toBe(true)
+
+    // Known now: the second pin goes straight to the row.
+    await repo.update("news-1", { pinned: false })
+    expect(retrieve).toHaveBeenCalledTimes(1)
+    expect(addColumn).toHaveBeenCalledTimes(1)
+  })
+
+  it("refuses to pin into a column that is not a checkbox", async () => {
+    resetKnownColumns()
+    const client = {
+      pages: { update: vi.fn() },
+      dataSources: {
+        retrieve: vi
+          .fn()
+          .mockResolvedValue({ properties: { Pinned: { type: "select" } } }),
+        update: vi.fn(),
+      },
+    } as unknown as Client
+    const repo = new NotionCollectionRepository(
+      { ...CONFIG, properties: { ...CONFIG.properties, pinned: "Pinned" } },
+      client,
+    )
+
+    await expect(repo.update("news-1", { pinned: true })).rejects.toMatchObject(
+      { status: 409 },
+    )
+  })
+
+  it("reads a row from before the column existed as not pinned", async () => {
+    const update = vi.fn().mockResolvedValue(page())
+    const client = { pages: { update } } as unknown as Client
+    const repo = new NotionCollectionRepository(
+      { ...CONFIG, properties: { ...CONFIG.properties, pinned: "Pinned" } },
+      client,
+    )
+
+    expect((await repo.update("news-1", { title: "x" })).pinned).toBe(false)
   })
 
   it("skips columns the database does not have", async () => {

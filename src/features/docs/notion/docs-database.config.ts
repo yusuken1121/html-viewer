@@ -18,6 +18,7 @@ export function createDocsNotionConfig(): NotionDocumentDatabaseConfig {
       file: optionalEnv("NOTION_DOCS_FILE_PROPERTY", "File"),
       category: optionalEnv("NOTION_DOCS_CATEGORY_PROPERTY", "Category"),
       tags: optionalEnv("NOTION_DOCS_TAGS_PROPERTY", "Tags"),
+      pinned: optionalEnv("NOTION_DOCS_PINNED_PROPERTY", "Pinned"),
     },
   }
 }

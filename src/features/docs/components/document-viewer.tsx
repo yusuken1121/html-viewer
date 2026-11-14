@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { HtmlFrameViewer } from "@/components/html-frame-viewer"
 import { PATH } from "@/constants/path"
 import { useViewerNavigation } from "@/hooks/use-viewer-navigation"
-import { useDocument, useDocuments } from "../api/use-docs"
+import { useDocument, useDocuments, usePinDocument } from "../api/use-docs"
 import { DOCS_LABEL, DOCUMENT_LIST } from "../document-list"
 import { DocumentActions } from "./document-actions"
 
@@ -16,6 +16,7 @@ export function DocumentViewer({ id }: { id: string }) {
   // The list is usually cached already (the reader came from it); it is what
   // 前へ／次へ walk through.
   const { data: documents } = useDocuments()
+  const pin = usePinDocument()
   const { backHref, navigation } = useViewerNavigation({
     items: documents,
     currentId: id,
@@ -37,6 +38,15 @@ export function DocumentViewer({ id }: { id: string }) {
       sourceUrl={data?.sourceUrl}
       reading={{ key: DOCUMENT_LIST.viewerPath(id), label: DOCS_LABEL }}
       navigation={navigation}
+      pin={
+        data
+          ? {
+              pinned: data.pinned,
+              onToggle: () => pin.mutate({ id, pinned: !data.pinned }),
+              pending: pin.isPending,
+            }
+          : undefined
+      }
       actions={
         data ? (
           // Deleting the document being read leaves nothing to show, so the

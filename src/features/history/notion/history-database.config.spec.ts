@@ -9,7 +9,7 @@ afterEach(() => {
 })
 
 describe("createHistoryNotionConfig", () => {
-  it("maps the same four columns as the AWS/docs database", () => {
+  it("maps the AWS/docs database's four columns, plus Pinned", () => {
     process.env.NOTION_HISTORY_DATABASE_ID = "0e0ccbe7f97b4c8cbf7ce81d34098b2d"
 
     expect(createHistoryNotionConfig()).toEqual({
@@ -20,6 +20,7 @@ describe("createHistoryNotionConfig", () => {
         file: "File",
         category: "Category",
         tags: "Tags",
+        pinned: "Pinned",
       },
     })
   })

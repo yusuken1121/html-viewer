@@ -81,6 +81,9 @@ async function main() {
           },
         },
         Tags: { multi_select: {} },
+        // The app would add it on the first pin anyway; created up front so
+        // the column is visible in Notion from day one.
+        Pinned: { checkbox: {} },
       },
     },
   })

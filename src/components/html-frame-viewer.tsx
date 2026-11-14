@@ -11,6 +11,7 @@ import {
   Loader2,
 } from "lucide-react"
 
+import { PinToggle, type PinControl } from "@/components/pin-toggle"
 import { Button } from "@/components/ui/button"
 import { APP_CONFIG } from "@/constants/app-config"
 import type {
@@ -47,6 +48,7 @@ export function HtmlFrameViewer({
   actions,
   reading,
   navigation,
+  pin,
 }: {
   title: string | undefined
   contentUrl: string | undefined
@@ -67,6 +69,8 @@ export function HtmlFrameViewer({
   reading?: { key: string; label: string }
   /** The neighbours in the list the reader came from. */
   navigation?: ViewerNavigation
+  /** Pinning, once the item is known. */
+  pin?: PinControl
 }) {
   // Keyed by URL rather than a boolean: stepping to the next item reuses
   // this component, and the spinner must come back for the new file.
@@ -117,6 +121,8 @@ export function HtmlFrameViewer({
             />
           </nav>
         )}
+
+        {pin && <PinToggle {...pin} />}
 
         {hasFile && contentUrl && (
           <Button

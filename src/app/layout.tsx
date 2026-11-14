@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { headers } from "next/headers"
 import "./globals.css"
 
+import { OfflineSupport } from "@/components/offline-support"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { APP_CONFIG } from "@/constants/app-config"
@@ -30,6 +31,16 @@ export const metadata: Metadata = {
     url: APP_CONFIG.url,
   },
   twitter: { card: "summary_large_image" },
+  // Home-screen install on iOS, which reads these rather than the manifest.
+  appleWebApp: {
+    capable: true,
+    title: APP_CONFIG.name,
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
 }
 
 export const viewport: Viewport = {
@@ -77,6 +88,7 @@ export default async function RootLayout({
           <ReactQueryProvider>
             {children}
             <Toaster />
+            <OfflineSupport />
           </ReactQueryProvider>
         </ThemeProvider>
       </body>

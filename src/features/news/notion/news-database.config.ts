@@ -35,6 +35,7 @@ export function createNewsNotionConfig(): NotionCollectionConfig {
       file: optionalEnv("NOTION_NEWS_FILE_PROPERTY", "File"),
       category: optionalEnv("NOTION_NEWS_CATEGORY_PROPERTY", "Category"),
       tags: optionalEnv("NOTION_NEWS_TAGS_PROPERTY", "Tags"),
+      pinned: optionalEnv("NOTION_NEWS_PINNED_PROPERTY", "Pinned"),
       ...(publishedAt ? { publishedAt } : {}),
     },
   }

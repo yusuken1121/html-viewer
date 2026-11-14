@@ -71,6 +71,32 @@ DOCS_SOURCE=local pnpm dev
 `<title>` を書き換えることで行い（カテゴリとタグは変更できません）、
 削除したファイルは `content/.trash/` に移動します。
 
+## ピン留め
+
+試験前に見返す資料などを、一覧の先頭に固定できます。ライブラリはカードの「⋮」から、
+ニュース・英語・世界史はビューアのヘッダーにあるピンのボタンから切り替えます。
+
+- 保存先は Notion のチェックボックス列（既定名 `Pinned`）なので、スマホと PC で同じです。
+  列が無いデータベースでは、初めてピン留めしたときにアプリが列を追加します。
+- 切り替えには、編集と同じ `DOCS_UPLOAD_SECRET` が要ります（アップロード画面で
+  一度入力したキーが使われます）。
+- ピン留めした資料は、開いたことがなくても**オフライン用に端末へ保存**されます（下記）。
+- ローカルモードでは `content/.pinned.json` に記録します。
+
+## ホーム画面への追加とオフライン
+
+スマホのブラウザで「ホーム画面に追加」すると、アプリとして全画面で開けます。
+アイコンを長押しすると、ニュース・英語・世界史・アップロードへ直接移れます。
+
+本番ビルドでは Service Worker（`public/sw.js`）が動き、電波がなくても次のものが読めます。
+
+- 一度開いたページと資料
+- ピン留めした資料（一覧を開いたときに裏で保存）
+
+一覧はオフライン時に最後に取得した内容を表示し、画面下に「オフライン」と出ます。
+保存していない資料を開こうとすると、オフライン用の案内ページが出ます。
+開発サーバー（`pnpm dev`）では Service Worker を登録しません。
+
 ## ニュース・英語・世界史
 
 学習メモ（ライブラリ）とは別に、**新着順で並ぶコレクション**が 3 つあります。
@@ -159,7 +185,8 @@ curl -X POST http://localhost:3000/api/news \
 3. `src/app/(app)/<name>/page.tsx` と `src/app/(viewer)/<name>/[id]/page.tsx`
 4. `src/constants/path.ts` と `src/constants/sidebar.tsx`
 5. `next.config.ts` の `FRAMED_COLLECTIONS`、`src/middleware.ts` の
-   `FRAMED_CONTENT_PATH`、`scripts/init-collection-db.ts` の `COLLECTIONS`
+   `FRAMED_CONTENT_PATH`、`scripts/init-collection-db.ts` の `COLLECTIONS`、
+   `public/sw.js` の `COLLECTIONS`（オフライン保存の対象）
 
 ## デプロイ（Vercel）
 

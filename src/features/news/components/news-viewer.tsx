@@ -3,7 +3,7 @@
 import { HtmlFrameViewer } from "@/components/html-frame-viewer"
 import { useViewerNavigation } from "@/hooks/use-viewer-navigation"
 import { collectionDescriptor } from "@/lib/collections/collection-descriptor"
-import { useNews, useNewsItem } from "../api/use-news"
+import { useNews, useNewsItem, usePinNewsItem } from "../api/use-news"
 import { NEWS_LABEL, NEWS_PATH, newsViewerPath } from "../news.config"
 
 const DESCRIPTOR = collectionDescriptor(newsViewerPath)
@@ -12,6 +12,7 @@ const DESCRIPTOR = collectionDescriptor(newsViewerPath)
 export function NewsViewer({ id }: { id: string }) {
   const { data, isPending, isError, error } = useNewsItem(id)
   // The feed is usually cached already; it is what 前へ／次へ walk through.
+  const pin = usePinNewsItem()
   const { data: items } = useNews()
   const { backHref, navigation } = useViewerNavigation({
     items,
@@ -34,6 +35,15 @@ export function NewsViewer({ id }: { id: string }) {
       sourceUrl={data?.sourceUrl}
       reading={{ key: newsViewerPath(id), label: NEWS_LABEL }}
       navigation={navigation}
+      pin={
+        data
+          ? {
+              pinned: data.pinned,
+              onToggle: () => pin.mutate({ id, pinned: !data.pinned }),
+              pending: pin.isPending,
+            }
+          : undefined
+      }
     />
   )
 }

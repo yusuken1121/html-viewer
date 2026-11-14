@@ -28,6 +28,10 @@ export class UpdateDocumentUseCase {
     const normalized = normalizeUpdate(changes)
     assertValidDocumentUpdate(normalized)
 
+    // Pinning what is already pinned is not a change; skipping it keeps
+    // Notion's `last_edited_time` — the library's sort order — where it was.
+    if (normalized.pinned === existing.pinned) delete normalized.pinned
+
     // Nothing survived normalisation (an edit that changed only whitespace).
     if (isEmptyDocumentUpdate(normalized)) return existing
 
@@ -65,6 +69,8 @@ function normalizeUpdate(changes: DocumentUpdate): DocumentUpdate {
     }
     normalized.tags = [...seen]
   }
+
+  if (changes.pinned !== undefined) normalized.pinned = changes.pinned
 
   return normalized
 }

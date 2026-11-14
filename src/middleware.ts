@@ -29,6 +29,11 @@ function buildCsp(nonce: string, isDev: boolean, isHttps: boolean): string {
     `img-src 'self' blob: data: https:`,
     `font-src 'self' data:`,
     `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
+    // The offline service worker (public/sw.js) and the install manifest.
+    // Named outright: a worker would otherwise fall back to script-src,
+    // whose 'strict-dynamic' ignores 'self'.
+    `worker-src 'self'`,
+    `manifest-src 'self'`,
     `object-src 'none'`,
     `base-uri 'self'`,
     `form-action 'self'`,
