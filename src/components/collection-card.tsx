@@ -4,6 +4,7 @@ import Link from "next/link"
 import { FileText, FileWarning } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
+import { UnreadDot } from "@/components/list-toolbar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -36,10 +37,13 @@ export function CollectionCard({
   item,
   href,
   icon: Icon = FileText,
+  unread = false,
 }: {
   item: CollectionCardItem
   href: string
   icon?: LucideIcon
+  /** Not opened yet — see `@/lib/reading-history`. */
+  unread?: boolean
 }) {
   const Glyph = item.hasFile ? Icon : FileWarning
 
@@ -66,7 +70,8 @@ export function CollectionCard({
 
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="leading-snug font-semibold text-balance">
+            <h2 className="flex items-center gap-2 leading-snug font-semibold text-balance">
+              {unread && <UnreadDot />}
               {item.title}
             </h2>
             <time
@@ -126,10 +131,13 @@ export function CollectionRow({
   item,
   href,
   icon: Icon = FileText,
+  unread = false,
 }: {
   item: CollectionCardItem
   href: string
   icon?: LucideIcon
+  /** Not opened yet — see `@/lib/reading-history`. */
+  unread?: boolean
 }) {
   const Glyph = item.hasFile ? Icon : FileWarning
 
@@ -147,7 +155,13 @@ export function CollectionRow({
         )}
         aria-hidden="true"
       />
-      <h2 className="min-w-0 flex-1 truncate text-sm font-medium">
+      {unread && <UnreadDot />}
+      <h2
+        className={cn(
+          "min-w-0 flex-1 truncate text-sm",
+          unread ? "font-semibold" : "font-medium",
+        )}
+      >
         {item.title}
         {!item.hasFile && (
           <span className="ml-2 text-xs font-normal text-muted-foreground">

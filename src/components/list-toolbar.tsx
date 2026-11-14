@@ -6,6 +6,7 @@ import { LayoutGrid, List, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { cn } from "@/lib/utils"
 
 /**
  * The search box and the list/card switch shared by the library and the
@@ -68,23 +69,8 @@ export function useListView(key: string): [ListView, (view: ListView) => void] {
   return [view, setView]
 }
 
-/**
- * Whether one item matches what was typed: every word must appear somewhere
- * in its fields, so "s3 ライフサイクル" narrows rather than widens.
- */
-export function matchesQuery(
-  fields: ReadonlyArray<string | null | undefined>,
-  query: string,
-): boolean {
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
-  if (words.length === 0) return true
-
-  const haystack = fields
-    .filter((field): field is string => Boolean(field))
-    .join(" ")
-    .toLowerCase()
-  return words.every((word) => haystack.includes(word))
-}
+/** Moved to `@/lib/list-state` so the viewer can filter the same way. */
+export { matchesQuery } from "@/lib/list-state"
 
 export function ListToolbar({
   query,
@@ -140,6 +126,94 @@ export function ListToolbar({
   )
 }
 
+const CHIP =
+  "shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+const CHIP_ON = "border-primary bg-primary text-primary-foreground"
+const CHIP_OFF = "border-border bg-card text-foreground hover:bg-accent"
+
+/**
+ * The row of chips under the search box: 未読 on its own, then one choice
+ * among すべて and each category or tag.
+ *
+ * 未読 is a separate toggle rather than another choice because it combines
+ * with the others — "unread AWS news" is the common question.
+ */
+export function FilterChips({
+  values,
+  value,
+  onValueChange,
+  groupLabel,
+  unreadCount,
+  unreadOnly,
+  onUnreadOnlyChange,
+}: {
+  values: readonly string[]
+  value: string | null
+  onValueChange: (value: string | null) => void
+  groupLabel: string
+  unreadCount: number
+  unreadOnly: boolean
+  onUnreadOnlyChange: (unreadOnly: boolean) => void
+}) {
+  return (
+    <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
+      <button
+        type="button"
+        aria-pressed={unreadOnly}
+        onClick={() => onUnreadOnlyChange(!unreadOnly)}
+        className={cn(
+          CHIP,
+          "flex items-center gap-1.5",
+          unreadOnly ? CHIP_ON : CHIP_OFF,
+        )}
+      >
+        <span
+          className={cn(
+            "size-2 rounded-full",
+            unreadOnly ? "bg-primary-foreground" : "bg-primary",
+          )}
+          aria-hidden="true"
+        />
+        未読のみ
+        <span className="tabular-nums opacity-80">{unreadCount}</span>
+      </button>
+
+      {values.length > 0 && (
+        <>
+          <span className="h-5 w-px shrink-0 bg-border" aria-hidden="true" />
+          <div role="group" aria-label={groupLabel} className="flex gap-2">
+            {[null, ...values].map((option) => {
+              const active = value === option
+              return (
+                <button
+                  key={option ?? "__all__"}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onValueChange(option)}
+                  className={cn(CHIP, active ? CHIP_ON : CHIP_OFF)}
+                >
+                  {option ?? "すべて"}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** A small dot for an item not yet opened, with its meaning for screen readers. */
+export function UnreadDot({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn("size-2 shrink-0 rounded-full bg-primary", className)}
+      role="img"
+      aria-label="未読"
+    />
+  )
+}
+
 /** Placeholder rows shaped like the list view, so loading does not jump. */
 export function ListRowsSkeleton({ rows = 8 }: { rows?: number }) {
   return (
@@ -154,6 +228,26 @@ export function ListRowsSkeleton({ rows = 8 }: { rows?: number }) {
           <Skeleton className="h-4 w-20 shrink-0" />
         </div>
       ))}
+    </div>
+  )
+}
+
+/**
+ * What a list page shows before the browser knows its URL: the page is
+ * static, and the list's search and chip come from the query string.
+ */
+export function ListPageFallback() {
+  return (
+    <div
+      className="mx-auto flex w-full max-w-3xl flex-col gap-6"
+      aria-busy="true"
+    >
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-4 w-24" />
+      </div>
+      <Skeleton className="h-11 w-full" />
+      <ListRowsSkeleton />
     </div>
   )
 }

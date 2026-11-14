@@ -290,3 +290,90 @@ test("the collections are separate stores", async ({ page, request }) => {
     page.getByRole("heading", { name: "英語側だけの教材" }),
   ).toHaveCount(0)
 })
+
+test.describe("reading through a collection", () => {
+  test("前へ／次へ step through the list in its order, keeping the filter", async ({
+    page,
+    request,
+  }) => {
+    for (const [day, title, tags] of [
+      ["03", "三日目", ["S3"]],
+      ["02", "二日目", ["IAM"]],
+      ["01", "一日目", ["S3"]],
+    ] as const) {
+      await register(request, "news", {
+        fileName: `step-${day}.html`,
+        html: HTML(title, title),
+        publishedAt: `2026-01-${day}T09:00:00Z`,
+        tags,
+      })
+    }
+
+    await page.goto("/news")
+    await page.getByRole("link", { name: "二日目 を開く" }).click()
+    await expect(page.getByText("2 / 3")).toBeVisible()
+
+    await page.getByRole("link", { name: "次の項目: 一日目" }).click()
+    await expect(
+      page.getByRole("heading", { level: 1, name: "一日目" }),
+    ).toBeVisible()
+    await expect(page.getByRole("button", { name: "次の項目" })).toBeDisabled()
+
+    // With the S3 chip on, 二日目 (IAM) is stepped over.
+    await page.goto("/news?tag=S3")
+    await page.getByRole("link", { name: "一日目 を開く" }).click()
+    await expect(page.getByText("2 / 2")).toBeVisible()
+    await page.getByRole("link", { name: "前の項目: 三日目" }).click()
+    await expect(page).toHaveURL(/\/news\/[^?]+\?tag=S3$/)
+
+    await page.getByRole("link", { name: "ニュースへ戻る" }).click()
+    await expect(page).toHaveURL("/news?tag=S3")
+    await expect(page.getByRole("button", { name: "S3" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    )
+  })
+
+  test("an item that arrives later is 未読 until it is opened", async ({
+    page,
+    request,
+  }) => {
+    await register(request, "news", {
+      fileName: "before.html",
+      html: HTML("前からあった記事", "ok"),
+      publishedAt: "2026-01-01T09:00:00Z",
+    })
+
+    // The first visit starts the history: what is listed now counts as read.
+    await page.goto("/news")
+    await page.getByRole("link", { name: "前からあった記事 を開く" }).waitFor()
+
+    await register(request, "news", {
+      fileName: "after.html",
+      html: HTML("あとから来た記事", "ok"),
+    })
+    await page.reload()
+
+    const fresh = page.getByRole("link", { name: "あとから来た記事 を開く" })
+    await expect(fresh.getByRole("img", { name: "未読" })).toBeVisible()
+    await expect(
+      page
+        .getByRole("link", { name: "前からあった記事 を開く" })
+        .getByRole("img", { name: "未読" }),
+    ).toHaveCount(0)
+
+    await page.getByRole("button", { name: /未読のみ/ }).click()
+    await expect(page).toHaveURL("/news?unread=1")
+    await expect(
+      page.getByRole("link", { name: "前からあった記事 を開く" }),
+    ).toHaveCount(0)
+
+    await fresh.click()
+    await expect(
+      page.getByRole("heading", { level: 1, name: "あとから来た記事" }),
+    ).toBeVisible()
+    await page.getByRole("link", { name: "ニュースへ戻る" }).click()
+
+    await expect(page.getByText("未読の項目はありません")).toBeVisible()
+  })
+})
